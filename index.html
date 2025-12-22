@@ -82,18 +82,23 @@
     .btn-ok{ background:var(--green); color:#fff; border-color:var(--green); }
     .btn-outline{ background:var(--card); color:var(--primary); border-color:var(--primary); }
 
-    /* (Opcional) deixar claro visualmente que está desabilitado */
     .btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none !important; }
 
     .note{ margin-top:var(--space-2); font-size:.9rem; color:var(--muted); }
     .alert{ margin-top:var(--space-2); padding:var(--space-2); border-radius:var(--radius-8); display:none; font-size:.95rem; border:1px solid var(--border); background:var(--card); }
-    .alert.error{ border-color:var(--red); box-shadow:0 0 0 6px rgba(183,28,28,0.12); }
     .alert.success{ border-color:var(--green); box-shadow:0 0 0 6px rgba(27,94,32,0.12); }
 
     .derived-wrap{ margin-top:var(--space-3); border:1px solid var(--border); border-radius:var(--radius-10); box-shadow:var(--shadow-1); overflow:hidden; background:var(--card); }
     .derived-table th, .derived-table td{ padding:var(--space-2); border-bottom:1px solid var(--grid); text-align:center; }
     .derived-table thead th{ background:#e9edf3; font-weight:700; color:#0d1b2a; }
     .small{ font-size:.9rem; color:var(--muted); }
+
+    /* Resultados derivados: destaque quando estiver FORA */
+    .derived-out {
+      background: #ffebee;
+      color: #b71c1c;
+      font-weight: 700;
+    }
 
     .modal-backdrop { position:fixed; inset:0; background:rgba(18,23,31,0.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000; }
     .modal-backdrop.open { display:flex; }
@@ -226,7 +231,6 @@
             <th><abbr title="sD = Largura do friso">sD</abbr></th>
             <th><abbr title="sH = Altura do friso">sH</abbr></th>
             <th><abbr title="qR = Ângulo de face ativa">qR</abbr></th>
-            <!-- POSIÇÃO INVERTIDA: FR antes de V -->
             <th><abbr title="FR = Ovalização">FR</abbr></th>
             <th><abbr title="V = Empeno">V</abbr></th>
           </tr>
@@ -240,7 +244,6 @@
       <button type="button" class="btn btn-outline no-print" id="generatePdfBtn">Gerar PDF</button>
       <button type="reset" class="btn btn-danger no-print">Limpar</button>
 
-      <!-- NOVO BOTÃO (só habilita quando Operação = "Troca Roda") -->
       <button
         type="button"
         class="btn btn-outline no-print"
@@ -252,7 +255,6 @@
       <button type="submit" class="btn btn-primary no-print">Enviar</button>
     </div>
 
-    <div id="alertError" class="alert error" role="alert" aria-live="polite"></div>
     <div id="alertSuccess" class="alert success" role="status" aria-live="polite"></div>
 
     <div class="derived-wrap">
@@ -286,7 +288,7 @@
     const LIMITS = { D:{min:530.0,max:null}, sD:{min:17.0,max:null}, sH:{min:18.0,max:27.5}, qR:{min:2.5,max:7.0}, FR:{min:null,max:1.5}, V:{min:null,max:1.0} };
     const SEMAPHORE = {
       D:{ red:v=>v<530.0, yellow:v=>v<532.0, green:v=>v>=532.0 },
-      sD:{ red:v=>v<17.0, yellow:v=>v<18.5, green:v=>v>=20.0 },
+      sD:{ red:v=>v<17.0, yellow:v=>v<18.5, green:v=>v>=18.5 },
       sH:{ red:v=>(v<18.0||v>27.5), yellow:v=>(v<19.0||v>26.5), green:v=>(v<=26.5) },
       qR:{ red:v=>v<2.5, yellow:v=>v<3.5, green:v=>v>=4.5 },
       V:{ red:v=>v>1.0, yellow:v=>v>0.8, green:v=>v<=0.8 },
@@ -295,7 +297,7 @@
 
     const DERIVED_LIMITS = { DsD:{min:null,max:2.0}, DDEM:{min:null,max:1.0}, DDER:{min:null,max:2.0}, DDTM:{min:null,max:2.0}, DDTR:{min:null,max:6.0}, DDT:{min:null,max:10.0} };
 
-    /* MAPEAMENTO Roda Trem (recuperado) */
+    /* MAPEAMENTO Roda Trem */
     const RODA_TREM_MAP = {
       "Cabeça": {
         M1:{1:{E:1,D:2}, 2:{E:3,D:4}},
@@ -310,7 +312,11 @@
         M2:{1:{E:1,D:2}, 2:{E:3,D:4}},
       }
     };
-    function getRodaTrem(truque,eixo,roda,sentido){ if(!sentido) return ""; const val=RODA_TREM_MAP?.[sentido]?.[truque]?.[eixo]?.[roda]; return (val===undefined)?"":String(val); }
+    function getRodaTrem(truque,eixo,roda,sentido){
+      if(!sentido) return "";
+      const val=RODA_TREM_MAP?.[sentido]?.[truque]?.[eixo]?.[roda];
+      return (val===undefined)?"":String(val);
+    }
 
     /* ORDEM VISUAL das medições — FR antes de V */
     const measureFields = ["D","sD","sH","qR","FR","V"];
@@ -324,7 +330,6 @@
 
     const tbody = document.getElementById("measureBody");
     const derivedBody = document.getElementById("derivedBody");
-    const alertError = document.getElementById("alertError");
     const alertSuccess = document.getElementById("alertSuccess");
     const scoreEl = document.getElementById("finalScore");
     const scoreDotEl = document.getElementById("scoreDot");
@@ -343,13 +348,18 @@
 
     function fillTremOptions(){
       const tremSel=document.getElementById("trem");
-      for(let n=101;n<=132;n++){ const opt=document.createElement("option"); opt.value=String(n); opt.textContent=String(n); tremSel.appendChild(opt); }
+      for(let n=101;n<=132;n++){
+        const opt=document.createElement("option");
+        opt.value=String(n); opt.textContent=String(n);
+        tremSel.appendChild(opt);
+      }
     }
 
     function createCellWithStatus(inputEl){
       const wrap=document.createElement("div"); wrap.className="cell-status";
       const badge=document.createElement("span"); badge.className="badge";
-      wrap.appendChild(inputEl); wrap.appendChild(badge); return {wrap,badge};
+      wrap.appendChild(inputEl); wrap.appendChild(badge);
+      return {wrap,badge};
     }
 
     function createRow(truque,eixo,roda){
@@ -373,6 +383,7 @@
         const {wrap,badge}=createCellWithStatus(inp);
         td.appendChild(wrap); tr.appendChild(td);
 
+        // Listener por célula: atualiza farol + derivados + contadores + nota
         inp.addEventListener("input",()=>{
           const val=inp.value===""?null:Number(inp.value);
           const level=classifyIndividual(key,val);
@@ -386,16 +397,9 @@
       return tr;
     }
 
-    function initTable(){ COMBINATIONS.forEach(c=>tbody.appendChild(createRow(c.truque,c.eixo,c.roda))); }
-
-      // Atualiza nota final sempre que QUALQUER campo de medição mudar
-      document.getElementById("measureBody").addEventListener("input", (e) => {
-      	if (e.target.classList.contains("measure-input")) {
-      	  computeAndRenderDerived();
-      	  updateCounters();
-      	  updateFinalScore();
-         }
-      	});
+    function initTable(){
+      COMBINATIONS.forEach(c=>tbody.appendChild(createRow(c.truque,c.eixo,c.roda)));
+    }
 
     function classifyIndividual(key,val){
       if(val===null||isNaN(val)) return null;
@@ -415,7 +419,12 @@
       else if(level==="red"){ inputEl.classList.add("status-bad"); badgeEl.classList.add("bad-badge"); }
     }
 
-    function inRange(val,min,max){ if(val===null||isNaN(val)) return null; if(min!==null&&val<min) return false; if(max!==null&&val>max) return false; return true; }
+    function inRange(val,min,max){
+      if(val===null||isNaN(val)) return null;
+      if(min!==null && val<min) return false;
+      if(max!==null && val>max) return false;
+      return true;
+    }
     function checkDerived(val,lim){ return inRange(val,lim.min,lim.max); }
 
     function collectData(){
@@ -435,8 +444,12 @@
         const ths=tr.querySelectorAll("th");
         const truqueEl=ths[0], eixoEl=ths[1], rodaEl=ths[2], rodaTremEl=ths[3];
         const inputs=tr.querySelectorAll("input.measure-input");
-        const row={ truque:truqueEl.textContent, eixo:Number(eixoEl.textContent), roda:rodaEl.textContent,
-          rodaTrem:(rodaTremEl.textContent?.trim()===""?null:Number(rodaTremEl.textContent)) };
+        const row={
+          truque:truqueEl.textContent,
+          eixo:Number(eixoEl.textContent),
+          roda:rodaEl.textContent,
+          rodaTrem:(rodaTremEl.textContent?.trim()===""?null:Number(rodaTremEl.textContent))
+        };
         inputs.forEach(inp=>{
           const key=inp.name.split("-").slice(-1)[0];
           const val=inp.value===""?null:Number(inp.value);
@@ -451,14 +464,22 @@
     function nestByTruqueEixoRoda(data){
       const byTr={};
       data.medidas.forEach(r=>{
-        byTr[r.truque]??={}; byTr[r.truque][r.eixo]??={};
+        byTr[r.truque]??={};
+        byTr[r.truque][r.eixo]??={};
         byTr[r.truque][r.eixo][r.roda]={ D:r.D, sD:r.sD, sH:r.sH, qR:r.qR, V:r.V, FR:r.FR };
       });
       return byTr;
     }
 
-    function avg(...nums){ const vals=nums.filter(v=>v!==null&&!isNaN(v)); if(!vals.length) return null; return vals.reduce((a,b)=>a+b,0)/vals.length; }
-    function diff(a,b){ if(a===null||b===null||isNaN(a)||isNaN(b)) return null; return Math.abs(a-b); }
+    function avg(...nums){
+      const vals=nums.filter(v=>v!==null && !isNaN(v));
+      if(!vals.length) return null;
+      return vals.reduce((a,b)=>a+b,0)/vals.length;
+    }
+    function diff(a,b){
+      if(a===null||b===null||isNaN(a)||isNaN(b)) return null;
+      return Math.abs(a-b);
+    }
 
     function computeDerived(byTr){
       const results=[];
@@ -466,7 +487,7 @@
         Object.keys(byTr[tr]).forEach(eixoStr=>{
           const eixo=Number(eixoStr);
           const E=byTr[tr][eixo]["E"]; const Dd=byTr[tr][eixo]["D"];
-          if(E&&Dd){
+          if(E && Dd){
             const dsD=diff(E.sD,Dd.sD);
             const okDsD=checkDerived(dsD,DERIVED_LIMITS.DsD);
             results.push({regra:"DsD",ref:`${tr} / eixo ${eixo}`,valor:dsD,status:okDsD});
@@ -485,7 +506,7 @@
 
       Object.keys(byTr).forEach(tr=>{
         const e1=byTr[tr][1], e2=byTr[tr][2];
-        if(e1&&e2){
+        if(e1 && e2){
           const D_e1=avg(e1["E"]?.D??null,e1["D"]?.D??null);
           const D_e2=avg(e2["E"]?.D??null,e2["D"]?.D??null);
           const ddt=diff(D_e1,D_e2);
@@ -512,7 +533,7 @@
         for(let i=0;i<validMeans.length;i++){
           for(let j=i+1;j<validMeans.length;j++){
             const d=diff(validMeans[i].mean,validMeans[j].mean);
-            if(d!==null&&d>maxPairDiff) maxPairDiff=d;
+            if(d!==null && d>maxPairDiff) maxPairDiff=d;
           }
         }
         const ok=checkDerived(maxPairDiff,DERIVED_LIMITS.DDT);
@@ -525,10 +546,15 @@
       derivedBody.innerHTML="";
       results.forEach(r=>{
         const tr=document.createElement("tr");
+
+        // 🔴 Destaque visual quando estiver FORA
+        if (r.status === false) tr.classList.add("derived-out");
+
         const tdReg=document.createElement("td");
         const tdRef=document.createElement("td");
         const tdVal=document.createElement("td");
         const tdSt=document.createElement("td");
+
         const abbr=document.createElement("abbr");
         const titles={
           DsD:"DsD = Diferença de largura do friso no mesmo eixo (≤ 2,0 mm)",
@@ -538,31 +564,53 @@
           DDTR:"DDTR = Diferença entre eixos do truque reboque (NP) (≤ 6,0 mm)",
           DDT:"DDT = Diferença entre truques motores (máx. par-a-par ≤ 10,0 mm)"
         };
-        abbr.title=titles[r.regra]; abbr.textContent=r.regra;
+        abbr.title=titles[r.regra] || "";
+        abbr.textContent=r.regra;
+
         tdReg.appendChild(abbr);
         tdRef.textContent=r.ref;
         tdVal.textContent=(r.valor===null||isNaN(r.valor))?"—":r.valor.toFixed(2);
-        const badge=document.createElement("span"); badge.className="badge "+(r.status?"ok-badge":"bad-badge");
-        const label=document.createElement("span"); label.textContent=r.status===null?"sem dados":(r.status?"OK":"fora");
-        tdSt.appendChild(badge); tdSt.appendChild(document.createTextNode(" ")); tdSt.appendChild(label);
+
+        const badge=document.createElement("span");
+        badge.className="badge "+(r.status===true?"ok-badge":"bad-badge");
+        const label=document.createElement("span");
+        label.textContent=r.status===null ? "sem dados" : (r.status ? "OK" : "fora");
+
+        tdSt.appendChild(badge);
+        tdSt.appendChild(document.createTextNode(" "));
+        tdSt.appendChild(label);
+
         tr.appendChild(tdReg); tr.appendChild(tdRef); tr.appendChild(tdVal); tr.appendChild(tdSt);
         derivedBody.appendChild(tr);
       });
     }
 
-    function computeAndRenderDerived(){ const data=collectData(); const byTr=nestByTruqueEixoRoda(data); const derived=computeDerived(byTr); renderDerived(derived); }
+    function computeAndRenderDerived(){
+      const data=collectData();
+      const byTr=nestByTruqueEixoRoda(data);
+      const derived=computeDerived(byTr);
+      renderDerived(derived);
+    }
 
     function computeCounters(data){
       const counters={green:0,yellow:0,red:0,neutral:0,empty:0};
       data.medidas.forEach(r=>{
         measureFields.forEach(k=>{
-          const val=r[k]; const level=classifyIndividual(k,val);
-          if(level===null) counters.empty++; else if(level==="green") counters.green++; else if(level==="yellow") counters.yellow++; else if(level==="red") counters.red++; else counters.neutral++;
+          const val=r[k];
+          const level=classifyIndividual(k,val);
+          if(level===null) counters.empty++;
+          else if(level==="green") counters.green++;
+          else if(level==="yellow") counters.yellow++;
+          else if(level==="red") counters.red++;
+          else counters.neutral++;
         });
       });
       return counters;
     }
-    function updateCounters(){ const data=collectData(); const c=computeCounters(data);
+
+    function updateCounters(){
+      const data=collectData();
+      const c=computeCounters(data);
       document.getElementById("cntGreen").textContent=c.green;
       document.getElementById("cntAmber").textContent=c.yellow;
       document.getElementById("cntRed").textContent=c.red;
@@ -570,84 +618,55 @@
       document.getElementById("cntEmpty").textContent=c.empty;
     }
 
-    const YELLOW_PENALTY = 0.6;
-    const RED_PENALTY    = 3.0;
-    const DERIVED_PENALTIES = { DsD:5, DDEM:8, DDTM:8, DDTR:6 };
+    function isMetaFilled(meta){
+      return meta.unidade && meta.frota && meta.trem && meta.data &&
+             !isNaN(meta.km) && meta.os && meta.operacao && meta.tipo && meta.sentido;
+    }
 
-    function isMetaFilled(meta){ return meta.unidade && meta.frota && meta.trem && meta.data && !isNaN(meta.km) && meta.os && meta.operacao && meta.tipo && meta.sentido; }
-
-/* =========================
-   NOVA LÓGICA DE NOTA FINAL
-   - Nota individual (96 campos): verde, amarelo=0.5, vermelho=0, vazio=0
-   - Nota derivada (20 parâmetros fixos): OK=1, Fora=0, sem dados=0
-   - Nota final ponderada: (2*Ind + 1*Der)/3
-   ========================= */
-
-    const IND_YELLOW_ALPHA = 0.5;         // α = 0,5
-    const IND_TOTAL_FIXED = 96;           // 16 linhas * 6 campos = 96
-    const RED_CRITICAL_P = 0.07;     // p = 0,07 penalização crítica por vermelho (hard limit)
-    const DER_TOTAL_FIXED = 20;           // conforme definição do usuário
+    /* =========================
+       LÓGICA DE NOTA FINAL
+       ========================= */
+    const IND_YELLOW_ALPHA = 0.5;
+    const IND_TOTAL_FIXED = 96;
+    const RED_CRITICAL_P = 0.07;
+    const DER_TOTAL_FIXED = 20;
 
     function computeIndividualScore(data) {
-      // Nota base linear (vermelho e vazio não pontuam)
       const c = computeCounters(data);
-
       const basePoints = (c.green + c.neutral) + (IND_YELLOW_ALPHA * c.yellow);
       const baseScore = 100 * (basePoints / IND_TOTAL_FIXED);
-
-      // Penalização crítica por vermelho (hard limit): multiplicador exponencial
       const criticalFactor = Math.pow(1 - RED_CRITICAL_P, c.red);
-
       const score = baseScore * criticalFactor;
       return Math.max(0, Math.min(100, score));
     }
 
     function buildExpectedDerivedKeys() {
-      // Precisamos FIXAR os 20 critérios esperados:
-      // DsD: 4 truques * 2 eixos = 8
-      // DDEM: 3 truques motores * 2 eixos = 6
-      // DDER: NP * 2 eixos = 2
-      // DDTM: 3 truques motores = 3
-      // DDTR: NP = 1
-      // Total = 20
       const expected = [];
-
       const truques = ["M1", "NM", "NP", "M2"];
       const motorTruques = ["M1", "NM", "M2"];
 
-      // Regras por eixo (ref = `${tr} / eixo ${eixo}`)
       truques.forEach(tr => {
         [1, 2].forEach(eixo => {
           expected.push({ regra: "DsD", ref: `${tr} / eixo ${eixo}` });
-
-          if (motorTruques.includes(tr)) {
-            expected.push({ regra: "DDEM", ref: `${tr} / eixo ${eixo}` });
-          } else if (tr === "NP") {
-            expected.push({ regra: "DDER", ref: `${tr} / eixo ${eixo}` });
-          }
+          if (motorTruques.includes(tr)) expected.push({ regra: "DDEM", ref: `${tr} / eixo ${eixo}` });
+          else if (tr === "NP") expected.push({ regra: "DDER", ref: `${tr} / eixo ${eixo}` });
         });
       });
 
-      // Regras por truque (ref = `${tr}`)
       motorTruques.forEach(tr => expected.push({ regra: "DDTM", ref: `${tr}` }));
       expected.push({ regra: "DDTR", ref: `NP` });
-
-      return expected; // deve ter 20 itens
+      return expected;
     }
 
     const EXPECTED_DERIVED = buildExpectedDerivedKeys();
 
     function computeDerivedScore(data) {
       const byTr = nestByTruqueEixoRoda(data);
-      const derivedResults = computeDerived(byTr); // sua função existente
+      const derivedResults = computeDerived(byTr);
 
-      // Mapa para lookup rápido (regra|ref => status)
       const map = new Map();
-      derivedResults.forEach(r => {
-        map.set(`${r.regra}|${r.ref}`, r.status); // status: true/false/null
-      });
+      derivedResults.forEach(r => map.set(`${r.regra}|${r.ref}`, r.status));
 
-      // Conta OK nos 20 esperados. Se não existir ou for null/false => 0 (sem dados = 0)
       let okCount = 0;
       EXPECTED_DERIVED.forEach(k => {
         const st = map.get(`${k.regra}|${k.ref}`);
@@ -661,33 +680,28 @@
     function computeFinalScore(data) {
       const ind = computeIndividualScore(data);
       const der = computeDerivedScore(data);
-
-      // pesos: individual=2, derivada=1
       const final = (2 * ind + 1 * der) / 3;
-
-      // igual ao seu padrão anterior: nota inteira 0–100
       return Math.max(0, Math.min(100, Math.round(final)));
     }
 
     function updateFinalScore() {
       const data = collectData();
-
       const metaOK = isMetaFilled(data.meta);
 
-      // Se os metadados ainda não estão completos, mantém "—"
       if (!metaOK) {
         scoreEl.textContent = "—";
         scoreDotEl.className = "dot empty";
         return;
       }
 
-      // Mostra a nota mesmo com vazios (vazios contam como 0 na nota individual e 0 na derivada)
       const score = computeFinalScore(data);
-
       scoreEl.textContent = String(score);
       scoreDotEl.className = "dot " + (score >= 85 ? "green" : (score >= 70 ? "amber" : "red"));
     }
 
+    /* =========================
+       MODAL TOLERÂNCIAS
+       ========================= */
     const tolModal=document.getElementById("tolerancesModal");
     const tolBody=document.getElementById("tolBody");
     const tolOpenBtn=document.getElementById("tolerancesBtn");
@@ -695,57 +709,83 @@
     const tolCloseTopBtn=document.getElementById("tolCloseTop");
     const tolDialog=tolModal.querySelector(".modal");
 
-    function formatLimitText(min,max){ const fmt=(n)=>(n===null||n===undefined)?null:n.toFixed(1).replace('.',','); const fmin=fmt(min), fmax=fmt(max);
-      if(fmin&&fmax) return `${fmin} a ${fmax}`; if(fmin&&!fmax) return `≥ ${fmin}`; if(!fmin&&fmax) return `≤ ${fmax}`; return `—`; }
+    function formatLimitText(min,max){
+      const fmt=(n)=>(n===null||n===undefined)?null:n.toFixed(1).replace('.',',');
+      const fmin=fmt(min), fmax=fmt(max);
+      if(fmin&&fmax) return `${fmin} a ${fmax}`;
+      if(fmin&&!fmax) return `≥ ${fmin}`;
+      if(!fmin&&fmax) return `≤ ${fmax}`;
+      return `—`;
+    }
+
     function buildTolerancesHtml(){
       const unitsNote=document.createElement("p"); unitsNote.className="small"; unitsNote.textContent="Unidades: mm/°.";
+
       const sec1Title=document.createElement("div"); sec1Title.className="section-title"; sec1Title.textContent="Tolerâncias individuais (hard limits)";
       const ul1=document.createElement("ul"); ul1.className="list";
       const labels={ D:"D = Diâmetro", sD:"sD = Largura do friso", sH:"sH = Altura do friso", qR:"qR = Ângulo de face ativa", FR:"FR = Ovalização", V:"V = Empeno" };
-      Object.keys(LIMITS).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(LIMITS[k].min,LIMITS[k].max)}`; li.appendChild(abbr); li.appendChild(span); ul1.appendChild(li); });
+      Object.keys(LIMITS).forEach(k=>{
+        const li=document.createElement("li");
+        const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(LIMITS[k].min,LIMITS[k].max)}`;
+        li.appendChild(abbr); li.appendChild(span); ul1.appendChild(li);
+      });
+
       const sec2Title=document.createElement("div"); sec2Title.className="section-title"; sec2Title.textContent="Tolerâncias derivadas / calculadas";
       const ul2=document.createElement("ul"); ul2.className="list";
       const dDesc={ DsD:"DsD = |sD(E) − sD(D)| (≤ 2,0)", DDEM:"DDEM = |D(E) − D(D)| (eixo motor ≤ 1,0)",
         DDER:"DDER = |D(E) − D(D)| (eixo reboque ≤ 2,0)", DDTM:"DDTM = |D̄eixo1 − D̄eixo2| (truque motor ≤ 2,0)",
         DDTR:"DDTR = |D̄eixo1 − D̄eixo2| (truque reboque ≤ 6,0)", DDT:"DDT = máx. diferença par-a-par entre truques motores ≤ 10,0" };
-      Object.keys(DERIVED_LIMITS).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=dDesc[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(DERIVED_LIMITS[k].min,DERIVED_LIMITS[k].max)}`; li.appendChild(abbr); li.appendChild(span); ul2.appendChild(li); });
+      Object.keys(DERIVED_LIMITS).forEach(k=>{
+        const li=document.createElement("li");
+        const abbr=document.createElement("abbr"); abbr.title=dDesc[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(DERIVED_LIMITS[k].min,DERIVED_LIMITS[k].max)}`;
+        li.appendChild(abbr); li.appendChild(span); ul2.appendChild(li);
+      });
+
       const sec3Title=document.createElement("div"); sec3Title.className="section-title"; sec3Title.textContent="Faróis visuais — critérios";
       const ul3=document.createElement("ul"); ul3.className="list";
-      const semaText={ D:"Vermelho: < 530,0 | Amarelo: < 532,0 | Verde: ≥ 532,0", sD:"Vermelho: < 17,0 | Amarelo: < 18,5 | Verde: ≥ 20,0",
+      const semaText={ D:"Vermelho: < 530,0 | Amarelo: < 532,0 | Verde: ≥ 532,0", sD:"Vermelho: < 17,0 | Amarelo: < 18,5 | Verde: ≥ 18,5",
         sH:"Vermelho: < 18,0 ou > 27,5 | Amarelo: < 19,0 ou > 26,5 | Verde: ≤ 26,5",
         qR:"Vermelho: < 2,5 | Amarelo: < 3,5 | Verde: ≥ 4,5", V:"Vermelho: > 1,0 | Amarelo: > 0,8 | Verde: ≤ 0,8", FR:"Vermelho: > 1,5 | Amarelo: > 1,0 | Verde: ≤ 1,0" };
-      Object.keys(semaText).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${semaText[k]}`; li.appendChild(abbr); li.appendChild(span); ul3.appendChild(li); });
-      const wrap=document.createElement("div"); wrap.appendChild(sec1Title); wrap.appendChild(ul1); wrap.appendChild(sec2Title); wrap.appendChild(ul2); wrap.appendChild(sec3Title); wrap.appendChild(ul3); wrap.appendChild(unitsNote); return wrap;
+      Object.keys(semaText).forEach(k=>{
+        const li=document.createElement("li");
+        const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${semaText[k]}`;
+        li.appendChild(abbr); li.appendChild(span); ul3.appendChild(li);
+      });
+
+      const wrap=document.createElement("div");
+      wrap.appendChild(sec1Title); wrap.appendChild(ul1);
+      wrap.appendChild(sec2Title); wrap.appendChild(ul2);
+      wrap.appendChild(sec3Title); wrap.appendChild(ul3);
+      wrap.appendChild(unitsNote);
+      return wrap;
     }
 
-    function openTolModal(){ tolBody.innerHTML=""; tolBody.appendChild(buildTolerancesHtml()); tolModal.classList.add("open"); tolModal.setAttribute("aria-hidden","false"); document.body.classList.add("modal-open"); tolDialog.focus(); }
-    function closeTolModal(){ tolModal.classList.remove("open"); tolModal.setAttribute("aria-hidden","true"); document.body.classList.remove("modal-open"); tolOpenBtn.focus(); }
+    function openTolModal(){
+      tolBody.innerHTML="";
+      tolBody.appendChild(buildTolerancesHtml());
+      tolModal.classList.add("open");
+      tolModal.setAttribute("aria-hidden","false");
+      document.body.classList.add("modal-open");
+      tolDialog.focus();
+    }
+    function closeTolModal(){
+      tolModal.classList.remove("open");
+      tolModal.setAttribute("aria-hidden","true");
+      document.body.classList.remove("modal-open");
+      tolOpenBtn.focus();
+    }
     tolOpenBtn.addEventListener("click",openTolModal);
     tolCloseBtn?.addEventListener("click",closeTolModal);
     tolCloseTopBtn?.addEventListener("click",closeTolModal);
     tolModal.addEventListener("click",(e)=>{ if(e.target===tolModal) closeTolModal(); });
     document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && tolModal.classList.contains("open")) closeTolModal(); });
 
-    function validate(data){
-      const errors=[];
-      if(!data.meta.unidade) errors.push("Campo 'Unidade' é obrigatório.");
-      if(!data.meta.frota) errors.push("Campo 'Frota' é obrigatório.");
-      if(!data.meta.trem) errors.push("Campo 'Trem' é obrigatório.");
-      if(!data.meta.data) errors.push("Campo 'Data' é obrigatório.");
-      if(isNaN(data.meta.km)) errors.push("Campo 'Quilometragem' deve ser numérico.");
-      if(!data.meta.os) errors.push("Campo 'Ordem de Serviço' é obrigatório.");
-      data.medidas.forEach(r=>{
-        ["D","sD","sH","qR","V","FR"].forEach(k=>{ // regras permanecem
-          const val=r[k]; const level=classifyIndividual(k,val);
-          if(level==="red") errors.push(`Crítico (vermelho): ${r.truque}/${r.eixo}/${r.roda} — ${k} = ${val}`);
-        });
-      });
-      return errors;
-    }
-
+    /* =========================
+       CSV (SEM BLOQUEIO)
+       ========================= */
     function toCSV(data){
       const headers=["Unidade","Frota","Data","Quilometragem","Ordem de Serviço","Operação","Tipo","Sentido","Trem","Truque","Eixo","Roda(ref. Torno)","Roda Trem","D","sD","sH","qR","FR","V"];
       const lines=[headers.join(",")];
@@ -768,6 +808,9 @@
       URL.revokeObjectURL(url);
     }
 
+    /* =========================
+       PDF (destaque em vermelho nos derivados "fora")
+       ========================= */
     function generatePdfReport(){
       const data=collectData();
       const counters=computeCounters(data);
@@ -776,15 +819,7 @@
 
       const now=new Date();
       const fmt=(n)=>(n===null||n===undefined||isNaN(n))?"—":Number(n).toFixed(2);
-      const criticals=[];
-      data.medidas.forEach(r=>{
-        ["D","sD","sH","qR","V","FR"].forEach(k=>{
-          const level=classifyIndividual(k,r[k]);
-          if(level==="red") criticals.push(`${r.truque}/${r.eixo}/${r.roda} — ${k}: ${fmt(r[k])}`);
-        });
-      });
 
-      /* POSIÇÃO INVERTIDA no PDF: FR antes de V */
       const measuresHeader=`
         <tr>
           <th>Truque</th><th>Eixo</th><th>Roda(ref. Torno)</th><th>Roda Trem</th>
@@ -796,20 +831,27 @@
 
       const measuresRows=data.medidas.map(r=>{
         const cells=measureFields.map(k=>{
-          const lvl=classifyIndividual(k,r[k]); const cls=levelClass(lvl); const dcls=dotClass(lvl); const val=fmt(r[k]);
+          const lvl=classifyIndividual(k,r[k]);
+          const cls=levelClass(lvl);
+          const dcls=dotClass(lvl);
+          const val=fmt(r[k]);
           return `<td class="${cls}"><span class="status-dot ${dcls}"></span>${val}</td>`;
         }).join("");
         return `<tr><td>${r.truque}</td><td>${r.eixo}</td><td>${r.roda}</td><td>${r.rodaTrem ?? "—"}</td>${cells}</tr>`;
       }).join("");
 
-      const derivedRows=derived.map(d=>`
-        <tr>
-          <td>${d.regra}</td>
-          <td>${d.ref}</td>
-          <td>${(d.valor===null||isNaN(d.valor))?"—":fmt(d.valor)}</td>
-          <td>${d.status===null?"sem dados":(d.status?"OK":"fora")}</td>
-        </tr>
-      `).join("");
+      // ✅ AQUI: class no <tr> quando status === false
+      const derivedRows = derived.map(d => {
+        const rowCls = (d.status === false) ? ' class="pdf-derived-out"' : '';
+        return `
+          <tr${rowCls}>
+            <td>${d.regra}</td>
+            <td>${d.ref}</td>
+            <td>${(d.valor===null||isNaN(d.valor)) ? "—" : fmt(d.valor)}</td>
+            <td>${d.status===null ? "sem dados" : (d.status ? "OK" : "fora")}</td>
+          </tr>
+        `;
+      }).join("");
 
       const html=`
         <html>
@@ -828,9 +870,24 @@
               .print-table thead th { background: #f3f3f3; }
               .chips { display: flex; gap: 8px; flex-wrap: wrap; }
               .chip { border: 1px solid #ddd; border-radius: 999px; padding: 4px 10px; font-weight: 700; font-size: 12px; }
-              .pdf-ok{ background:#e8f5e9; color:#1b5e20; } .pdf-warn{ background:#fff8e1; color:#8a5a00; } .pdf-bad{ background:#ffebee; color:#b71c1c; } .pdf-empty{ background:#fafafa; color:#777; }
+
+              .pdf-ok{ background:#e8f5e9; color:#1b5e20; }
+              .pdf-warn{ background:#fff8e1; color:#8a5a00; }
+              .pdf-bad{ background:#ffebee; color:#b71c1c; }
+              .pdf-empty{ background:#fafafa; color:#777; }
+
               .status-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; border:1px solid rgba(0,0,0,.2); }
-              .status-dot.ok{ background:#1b5e20; } .status-dot.warn{ background:#bf7b00; } .status-dot.bad{ background:#b71c1c; } .status-dot.empty{ background:#9aa0a6; }
+              .status-dot.ok{ background:#1b5e20; }
+              .status-dot.warn{ background:#bf7b00; }
+              .status-dot.bad{ background:#b71c1c; }
+              .status-dot.empty{ background:#9aa0a6; }
+
+              /* ✅ ESSA É A CORREÇÃO: em impressão, estilizar os TDs (não só o TR) */
+              .print-table tr.pdf-derived-out td{
+                background:#ffebee !important;
+                color:#b71c1c !important;
+                font-weight:700;
+              }
             </style>
           </head>
           <body>
@@ -871,11 +928,6 @@
               </div>
 
               <div class="print-card">
-                <div><strong>Não conformidades críticas (vermelho)</strong></div>
-                ${criticals.length ? `<ul style="margin-top:6px">${criticals.map(c=>`<li>${c}</li>`).join("")}</ul>` : `<div style="margin-top:6px">Nenhuma.</div>`}
-              </div>
-
-              <div class="print-card">
                 <div><strong>Resultados derivados</strong></div>
                 <table class="print-table" style="margin-top:6px">
                   <thead><tr><th>Regra</th><th>Referência</th><th>Valor</th><th>Status</th></tr></thead>
@@ -886,12 +938,20 @@
           </body>
         </html>
       `;
+
       const win=window.open("","_blank");
       win.document.open(); win.document.write(html); win.document.close();
       win.onload=()=>setTimeout(()=>win.print(),120);
     }
 
-    document.getElementById("unidade").addEventListener("change",(e)=>{ fillFrotaOptions(e.target.value); document.getElementById("frota").value=""; updateFinalScore(); });
+    /* =========================
+       UI
+       ========================= */
+    document.getElementById("unidade").addEventListener("change",(e)=>{
+      fillFrotaOptions(e.target.value);
+      document.getElementById("frota").value="";
+      updateFinalScore();
+    });
 
     ["frota","trem","data","km","os","operacao","tipo","sentido"].forEach(id=>{
       const el=document.getElementById(id);
@@ -900,44 +960,36 @@
     });
 
     document.getElementById("downloadCsvBtn").addEventListener("click",()=>{
-      const data=collectData(); const errs=validate(data);
-      if(errs.length){ alertError.textContent=errs.join(" "); alertError.style.display="block"; alertSuccess.style.display="none"; return; }
-      alertError.style.display="none"; alertSuccess.textContent="Exportado CSV com sucesso."; alertSuccess.style.display="block";
+      const data = collectData();
       downloadCSV(data);
+      alertSuccess.textContent = "Exportado CSV com sucesso.";
+      alertSuccess.style.display = "block";
     });
 
+    // Mantive submit só como "validação leve" (sem alertError).
     document.getElementById("inspectionForm").addEventListener("submit",(e)=>{
       e.preventDefault();
-      const data=collectData(); const errs=validate(data);
-      if(errs.length){ alertError.textContent=errs.join(" "); alertError.style.display="block"; alertSuccess.style.display="none"; return; }
-      alertError.style.display="none"; alertSuccess.textContent="Formulário validado. Pronto para enviar ao servidor!"; alertSuccess.style.display="block";
+      alertSuccess.textContent="Formulário validado. Pronto para enviar ao servidor!";
+      alertSuccess.style.display="block";
     });
 
     document.getElementById("generatePdfBtn").addEventListener("click",generatePdfReport);
 
     document.getElementById("sentido").addEventListener("change",()=>{
-      updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
+      updateRodaTremColumn();
+      computeAndRenderDerived();
+      updateCounters();
+      updateFinalScore();
     });
 
     /* =========================
-       NOVO: Botão "Roda Nova"
-       - Preenche todas as medições
-       - Só habilita quando Operação = "Troca Roda"
+       Botão "Roda Nova"
        ========================= */
-
     function preencherRodaNova() {
-      const valoresRodaNova = {
-        D: 608.50,
-        sD: 22.20,
-        sH: 25.50,
-        qR: 4.99,
-        FR: 0.00,
-        V: 0.00
-      };
+      const valoresRodaNova = { D:608.50, sD:22.20, sH:25.50, qR:4.99, FR:0.00, V:0.00 };
 
       document.querySelectorAll("input.measure-input").forEach(input => {
         const key = input.name.split("-").slice(-1)[0];
-
         if (Object.prototype.hasOwnProperty.call(valoresRodaNova, key)) {
           input.value = valoresRodaNova[key];
           input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -956,7 +1008,6 @@
     }
 
     document.getElementById("rodaNovaBtn").addEventListener("click", () => {
-      // Por segurança: não faz nada se estiver desabilitado
       if (document.getElementById("rodaNovaBtn").disabled) return;
       preencherRodaNova();
     });
@@ -968,10 +1019,17 @@
 
     document.getElementById("inspectionForm").addEventListener("reset",()=>{
       setTimeout(()=>{
-        document.getElementById("unidade").value=""; fillFrotaOptions(null); document.getElementById("frota").value="";
-        atualizarEstadoBotaoRodaNova(); // garante botão desativado após reset
-        updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
-        alertError.style.display="none"; alertSuccess.style.display="none";
+        document.getElementById("unidade").value="";
+        fillFrotaOptions(null);
+        document.getElementById("frota").value="";
+
+        atualizarEstadoBotaoRodaNova();
+        updateRodaTremColumn();
+        computeAndRenderDerived();
+        updateCounters();
+        updateFinalScore();
+
+        alertSuccess.style.display="none";
       },0);
     });
 
@@ -979,24 +1037,24 @@
       const sentido=document.getElementById("sentido").value;
       [...tbody.querySelectorAll("tr")].forEach(tr=>{
         const ths=tr.querySelectorAll("th");
-        const truque=ths[0].textContent; const eixo=Number(ths[1].textContent); const roda=ths[2].textContent;
+        const truque=ths[0].textContent;
+        const eixo=Number(ths[1].textContent);
+        const roda=ths[2].textContent;
         ths[3].textContent=getRodaTrem(truque,eixo,roda,sentido);
       });
     }
 
     function initAll(){
-      fillTremOptions(); fillFrotaOptions(null);
-      initTable(); updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
-      atualizarEstadoBotaoRodaNova(); // estado inicial (desabilitado)
+      fillTremOptions();
+      fillFrotaOptions(null);
+      initTable();
+      updateRodaTremColumn();
+      computeAndRenderDerived();
+      updateCounters();
+      updateFinalScore();
+      atualizarEstadoBotaoRodaNova();
     }
     initAll();
-
-    tbody.addEventListener("input", (e) => {
-	if (!e.target.classList.contains("measure-input")) return;
-	// a cor já é tratada pelo listener individual, mas isso garante que a nota sempre roda
-    	updateFinalScore();
-    });
-
   </script>
 </body>
 </html>
