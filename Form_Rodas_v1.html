@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medição de Rodas — Formulário</title>
+  <style>
+    :root {
+      /* Paleta */
+      --bg: #f2f3f5; --card: #ffffff; --ink: #1b1f25; --muted: #6b7280;
+      --border: #c7cbd1; --grid: #e3e6eb; --primary: #0f6cbd; --primary-weak: rgba(15,108,189,0.14);
+      /* Semáforos */
+      --green: #1b5e20; --amber: #bf7b00; --red: #b71c1c; --neutral: #7a7f87;
+      /* Espaçamentos */
+      --space-1: 6px; --space-2: 10px; --space-3: 14px; --space-4: 20px;
+      --radius-6: 6px; --radius-8: 8px; --radius-10: 10px; --shadow-1: 0 2px 10px rgba(18, 23, 31, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.35; padding: var(--space-4); }
+    body.modal-open { overflow: hidden; }
+
+    .header { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); flex-wrap:wrap; }
+    h1 { font-size:1.35rem; margin:0; letter-spacing:.2px; }
+    .subtitle { color:var(--muted); margin:4px 0 var(--space-3) 0; }
+
+    .info-btn {
+      display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%;
+      border:1px solid var(--border); background:var(--card); color:var(--ink); cursor:pointer; font-size:18px;
+      transition: box-shadow 0.2s, border-color 0.2s, transform .06s;
+    }
+    .info-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 6px var(--primary-weak); }
+    .info-btn:active { transform: scale(.98); }
+
+    .traffic-counters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--border); font-weight:600; font-size:.90rem; color:var(--ink); box-shadow:var(--shadow-1); }
+    .chip.score { font-weight:800; }
+    .dot { width:10px; height:10px; border-radius:50%; }
+    .dot.green{background:var(--green);} .dot.amber{background:var(--amber);} .dot.red{background:var(--red);} .dot.neutral{background:var(--neutral);} .dot.empty{background:#9aa0a6;}
+
+    .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-10); box-shadow:var(--shadow-1); padding:var(--space-3); max-width:100%; }
+    .field { display:flex; flex-direction:column; gap:var(--space-1); }
+    label { font-size:.86rem; color:var(--ink); font-weight:600; }
+
+    .input, select { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius-8); background:#fbfcff; color:var(--ink);
+      outline:none; transition: box-shadow .2s, border-color .2s, background .15s; }
+    .input:hover, select:hover { background:#f5f7fb; }
+    .input:focus, select:focus { border-color:var(--primary); box-shadow:0 0 0 6px var(--primary-weak); background:#fff; }
+
+    .meta-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--space-3); margin-bottom:var(--space-3); }
+    @media (max-width:980px){ .meta-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:560px){ .meta-grid{ grid-template-columns:1fr; } }
+
+    .table-wrap { width:100%; border:1px solid var(--border); border-radius:var(--radius-10); overflow:hidden; background:var(--card); }
+    table { width:100%; border-collapse:collapse; background:var(--card); table-layout:fixed; }
+    thead th { background:#e9edf3; color:#0d1b2a; text-align:center; padding:var(--space-2); border-bottom:1px solid var(--border); font-weight:700; white-space:normal; word-break:break-word; letter-spacing:.15px; font-size:.80rem; }
+    tbody th, tbody td { border-bottom:1px solid var(--grid); padding:var(--space-2); text-align:center; vertical-align:middle; color:var(--ink); }
+    tbody tr:nth-child(even){ background:#f7f9fc; }
+
+    .col-truque, .col-eixo, .col-roda, .col-roda-trem { width:90px; }
+
+    .measure-input { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius-8); background:#fbfcff; color:var(--ink);
+      font:inherit; transition:border-color .2s, box-shadow .2s, background .15s; }
+    .measure-input:hover { background:#f5f7fb; }
+    .measure-input:focus { border-color:var(--primary); box-shadow:0 0 0 6px var(--primary-weak); background:#fff; }
+
+    .cell-status { display:flex; align-items:center; gap:8px; justify-content:center; }
+    .badge { width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,0.15); box-shadow:inset 0 0 0 2px rgba(255,255,255,0.35); }
+    .ok-badge{background:var(--green);} .warn-badge{background:var(--amber);} .bad-badge{background:var(--red);}
+    .status-ok{ border-color:var(--green)!important; box-shadow:0 0 0 6px rgba(27,94,32,0.15); }
+    .status-warn{ border-color:var(--amber)!important; box-shadow:0 0 0 6px rgba(191,123,0,0.18); }
+    .status-bad{ border-color:var(--red)!important; box-shadow:0 0 0 6px rgba(183,28,28,0.18); }
+
+    .actions { display:flex; gap:var(--space-2); margin-top:var(--space-3); flex-wrap:wrap; }
+    .btn { border:1px solid var(--border); padding:10px 14px; border-radius:var(--radius-8); cursor:pointer; font-weight:700; background:var(--card); color:var(--ink);
+      transition: transform .06s, box-shadow .2s, border-color .2s, background .15s; }
+    .btn:hover{ border-color:var(--primary); box-shadow:0 0 0 6px var(--primary-weak); background:#f7f9fc; }
+    .btn:active{ transform:translateY(1px); }
+    .btn-primary{ background:var(--primary); color:#fff; border-color:var(--primary); }
+    .btn-primary:hover{ box-shadow:0 0 0 6px var(--primary-weak); background:#0c5ba0; }
+    .btn-danger{ background:var(--red); color:#fff; border-color:var(--red); }
+    .btn-ok{ background:var(--green); color:#fff; border-color:var(--green); }
+    .btn-outline{ background:var(--card); color:var(--primary); border-color:var(--primary); }
+
+    /* (Opcional) deixar claro visualmente que está desabilitado */
+    .btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none !important; }
+
+    .note{ margin-top:var(--space-2); font-size:.9rem; color:var(--muted); }
+    .alert{ margin-top:var(--space-2); padding:var(--space-2); border-radius:var(--radius-8); display:none; font-size:.95rem; border:1px solid var(--border); background:var(--card); }
+    .alert.error{ border-color:var(--red); box-shadow:0 0 0 6px rgba(183,28,28,0.12); }
+    .alert.success{ border-color:var(--green); box-shadow:0 0 0 6px rgba(27,94,32,0.12); }
+
+    .derived-wrap{ margin-top:var(--space-3); border:1px solid var(--border); border-radius:var(--radius-10); box-shadow:var(--shadow-1); overflow:hidden; background:var(--card); }
+    .derived-table th, .derived-table td{ padding:var(--space-2); border-bottom:1px solid var(--grid); text-align:center; }
+    .derived-table thead th{ background:#e9edf3; font-weight:700; color:#0d1b2a; }
+    .small{ font-size:.9rem; color:var(--muted); }
+
+    .modal-backdrop { position:fixed; inset:0; background:rgba(18,23,31,0.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:1000; }
+    .modal-backdrop.open { display:flex; }
+    .modal { background:var(--card); border-radius:12px; max-width:820px; width:100%; box-shadow:0 16px 64px rgba(18,23,31,0.35); border:1px solid var(--border); outline:none; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+    .modal-title { font-weight:800; letter-spacing:.2px; }
+    .modal-body { padding:14px 16px; display:grid; gap:12px; color:var(--ink); max-height:65vh; overflow:auto; }
+    .modal-footer { padding:12px 16px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
+    .close-btn { border:1px solid var(--red); background:transparent; color:var(--red); font-weight:700; cursor:pointer; padding:8px 12px; border-radius:var(--radius-8); }
+    .section-title { font-weight:800; margin:4px 0; }
+    .list { margin:0; padding-left:18px; }
+    .list li { margin:4px 0; }
+
+    @media print {
+      body{ padding:0; background:#fff; color:#111; }
+      .no-print{ display:none!important; }
+      .print-section{ padding:16px 24px; }
+      .print-title{ font-size:1.25rem; font-weight:700; margin-bottom:8px; }
+      .print-sub{ color:#555; margin-bottom:12px; }
+      .print-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:12px; }
+      .print-card{ border:1px solid #ddd; border-radius:8px; padding:12px; margin-bottom:12px; }
+      .print-table{ width:100%; border-collapse:collapse; }
+      .print-table th, .print-table td{ border:1px solid #ddd; padding:6px 8px; font-size:12px; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .print-table thead th{ background:#f3f3f3; }
+      .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+      .chip{ border:1px solid #ddd; border-radius:999px; padding:4px 10px; font-weight:700; font-size:12px; }
+
+      .pdf-ok   { background:#e8f5e9; color:#1b5e20; }
+      .pdf-warn { background:#fff8e1; color:#8a5a00; }
+      .pdf-bad  { background:#ffebee; color:#b71c1c; }
+      .pdf-empty{ background:#fafafa; color:#777; }
+      .status-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; border:1px solid rgba(0,0,0,.2); }
+      .status-dot.ok{ background:#1b5e20; } .status-dot.warn{ background:#bf7b00; } .status-dot.bad{ background:#b71c1c; } .status-dot.empty{ background:#9aa0a6; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Formulário de Medição de Rodas</h1>
+    <button id="tolerancesBtn" class="info-btn no-print" aria-label="Ver tolerâncias" title="Ver tolerâncias">ℹ️</button>
+
+    <div id="counterBar" class="traffic-counters" aria-live="polite">
+      <span class="chip"><span class="dot green"></span> Verde: <span id="cntGreen">0</span></span>
+      <span class="chip"><span class="dot amber"></span> Amarelo: <span id="cntAmber">0</span></span>
+      <span class="chip"><span class="dot red"></span> Vermelho: <span id="cntRed">0</span></span>
+      <span class="chip"><span class="dot empty"></span> Vazios: <span id="cntEmpty">0</span></span>
+
+      <span class="chip score" title="Nota final calculada (0–100)">
+        <span id="scoreDot" class="dot empty"></span>
+        Nota final: <span id="finalScore">—</span>
+      </span>
+    </div>
+  </div>
+
+  <p class="subtitle">Ferramenta de registro de medições de rodas. Usada para operações de medições preventivas, usinagens e trocas de roda</p>
+
+  <form id="inspectionForm" class="card" autocomplete="off">
+    <div class="meta-grid">
+      <div class="field">
+        <label for="unidade">Unidade</label>
+        <select id="unidade" name="unidade" required>
+          <option value="" disabled selected>Selecione...</option>
+          <option>VT</option><option>VQ</option><option>ON</option><option>VM</option><option>MB</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="frota">Frota</label>
+        <select id="frota" name="frota" required>
+          <option value="" disabled selected>Selecione a Unidade primeiro...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="trem">Trem</label>
+        <select id="trem" name="trem" required>
+          <option value="" disabled selected>Selecione...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="data">Data</label>
+        <input class="input" type="date" id="data" name="data" required />
+      </div>
+
+      <div class="field">
+        <label for="km">Quilometragem</label>
+        <input class="input" type="number" id="km" name="km" step="0.1" min="0" placeholder="Ex.: 120345.7" required />
+      </div>
+
+      <div class="field">
+        <label for="os">Ordem de Serviço</label>
+        <input class="input" type="text" id="os" name="os" placeholder="Ex.: OS-000123" required />
+      </div>
+
+      <div class="field">
+        <label for="operacao">Operação</label>
+        <select id="operacao" name="operacao" required>
+          <option value="" disabled selected>Selecione...</option>
+          <option>Medição</option><option>Usinagem</option><option>Troca Roda meia vida</option><option>Troca Roda</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo" required>
+          <option value="" disabled selected>Selecione...</option>
+          <option>Torno</option><option>Calipri</option><option>Perfilometro</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sentido">Sentido</label>
+        <select id="sentido" name="sentido" required>
+          <option value="" disabled selected>Selecione...</option>
+          <option>Cabeça</option><option>Parte de trás</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table aria-label="Tabela de medições por truque/eixo/roda">
+        <thead>
+          <tr>
+            <th class="col-truque">Truque</th>
+            <th class="col-eixo">Eixo</th>
+            <th class="col-roda">Roda<br>(ref. Torno)</th>
+            <th class="col-roda-trem">Roda Trem</th>
+            <th><abbr title="D = Diâmetro">D</abbr></th>
+            <th><abbr title="sD = Largura do friso">sD</abbr></th>
+            <th><abbr title="sH = Altura do friso">sH</abbr></th>
+            <th><abbr title="qR = Ângulo de face ativa">qR</abbr></th>
+            <!-- POSIÇÃO INVERTIDA: FR antes de V -->
+            <th><abbr title="FR = Ovalização">FR</abbr></th>
+            <th><abbr title="V = Empeno">V</abbr></th>
+          </tr>
+        </thead>
+        <tbody id="measureBody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-ok no-print" id="downloadCsvBtn">Baixar CSV</button>
+      <button type="button" class="btn btn-outline no-print" id="generatePdfBtn">Gerar PDF</button>
+      <button type="reset" class="btn btn-danger no-print">Limpar</button>
+
+      <!-- NOVO BOTÃO (só habilita quando Operação = "Troca Roda") -->
+      <button
+        type="button"
+        class="btn btn-outline no-print"
+        id="rodaNovaBtn"
+        disabled
+        title="Disponível apenas para operação: Troca Roda"
+      >Roda Nova</button>
+
+      <button type="submit" class="btn btn-primary no-print">Enviar</button>
+    </div>
+
+    <div id="alertError" class="alert error" role="alert" aria-live="polite"></div>
+    <div id="alertSuccess" class="alert success" role="status" aria-live="polite"></div>
+
+    <div class="derived-wrap">
+      <table class="derived-table" aria-label="Resultados derivados">
+        <thead>
+          <tr><th>Regra</th><th>Referência</th><th>Valor</th><th>Status</th></tr>
+        </thead>
+        <tbody id="derivedBody"></tbody>
+      </table>
+      <p class="small">Obs.: D̄_eixo = média de D(E) e D(D). Média do truque = média dos dois eixos.</p>
+    </div>
+  </form>
+
+  <div id="tolerancesModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="tolTitle">
+    <div class="modal" role="document" tabindex="-1">
+      <div class="modal-header">
+        <div id="tolTitle" class="modal-title">Tolerâncias consideradas</div>
+        <button id="tolCloseTop" class="info-btn" aria-label="Fechar">✖️</button>
+      </div>
+      <div id="tolBody" class="modal-body"></div>
+      <div class="modal-footer"><button id="tolClose" class="close-btn">Fechar</button></div>
+    </div>
+  </div>
+
+  <script>
+    const MOTOR_TRUQUES = ["M1","NM","M2"];
+    const REBOQUE_TRUQUE = "NP";
+
+    const FROTA_BY_UNIDADE = { VT:["Citadis 402"], VQ:["S400"], VM:["Frota P"], ON:["S7000","S8900"], MB:["S1000","S2000"] };
+
+    const LIMITS = { D:{min:530.0,max:null}, sD:{min:17.0,max:null}, sH:{min:18.0,max:27.5}, qR:{min:2.5,max:7.0}, FR:{min:null,max:1.5}, V:{min:null,max:1.0} };
+    const SEMAPHORE = {
+      D:{ red:v=>v<530.0, yellow:v=>v<532.0, green:v=>v>=532.0 },
+      sD:{ red:v=>v<17.0, yellow:v=>v<18.5, green:v=>v>=20.0 },
+      sH:{ red:v=>(v<18.0||v>27.5), yellow:v=>(v<19.0||v>26.5), green:v=>(v<=26.5) },
+      qR:{ red:v=>v<2.5, yellow:v=>v<3.5, green:v=>v>=4.5 },
+      V:{ red:v=>v>1.0, yellow:v=>v>0.8, green:v=>v<=0.8 },
+      FR:{ red:v=>v>1.5, yellow:v=>v>1.0, green:v=>v<=1.0 },
+    };
+
+    const DERIVED_LIMITS = { DsD:{min:null,max:2.0}, DDEM:{min:null,max:1.0}, DDER:{min:null,max:2.0}, DDTM:{min:null,max:2.0}, DDTR:{min:null,max:6.0}, DDT:{min:null,max:10.0} };
+
+    /* MAPEAMENTO Roda Trem (recuperado) */
+    const RODA_TREM_MAP = {
+      "Cabeça": {
+        M1:{1:{E:1,D:2}, 2:{E:3,D:4}},
+        NM:{1:{E:1,D:2}, 2:{E:3,D:4}},
+        NP:{1:{E:2,D:1}, 2:{E:4,D:3}},
+        M2:{1:{E:2,D:1}, 2:{E:4,D:3}},
+      },
+      "Parte de trás": {
+        M1:{1:{E:2,D:1}, 2:{E:4,D:3}},
+        NM:{1:{E:2,D:1}, 2:{E:4,D:3}},
+        NP:{1:{E:1,D:2}, 2:{E:3,D:4}},
+        M2:{1:{E:1,D:2}, 2:{E:3,D:4}},
+      }
+    };
+    function getRodaTrem(truque,eixo,roda,sentido){ if(!sentido) return ""; const val=RODA_TREM_MAP?.[sentido]?.[truque]?.[eixo]?.[roda]; return (val===undefined)?"":String(val); }
+
+    /* ORDEM VISUAL das medições — FR antes de V */
+    const measureFields = ["D","sD","sH","qR","FR","V"];
+
+    const COMBINATIONS = [
+      {truque:"M1",eixo:1,roda:"E"},{truque:"M1",eixo:1,roda:"D"},{truque:"M1",eixo:2,roda:"E"},{truque:"M1",eixo:2,roda:"D"},
+      {truque:"NM",eixo:1,roda:"E"},{truque:"NM",eixo:1,roda:"D"},{truque:"NM",eixo:2,roda:"E"},{truque:"NM",eixo:2,roda:"D"},
+      {truque:"NP",eixo:1,roda:"E"},{truque:"NP",eixo:1,roda:"D"},{truque:"NP",eixo:2,roda:"E"},{truque:"NP",eixo:2,roda:"D"},
+      {truque:"M2",eixo:1,roda:"E"},{truque:"M2",eixo:1,roda:"D"},{truque:"M2",eixo:2,roda:"E"},{truque:"M2",eixo:2,roda:"D"},
+    ];
+
+    const tbody = document.getElementById("measureBody");
+    const derivedBody = document.getElementById("derivedBody");
+    const alertError = document.getElementById("alertError");
+    const alertSuccess = document.getElementById("alertSuccess");
+    const scoreEl = document.getElementById("finalScore");
+    const scoreDotEl = document.getElementById("scoreDot");
+
+    function fillFrotaOptions(unidade){
+      const frotaSel=document.getElementById("frota");
+      frotaSel.innerHTML="";
+      const first=document.createElement("option"); first.value=""; first.disabled=true; first.selected=true;
+      first.textContent = unidade ? "Selecione..." : "Selecione a Unidade primeiro...";
+      frotaSel.appendChild(first);
+      if(!unidade) return;
+      (FROTA_BY_UNIDADE[unidade]||[]).forEach(model=>{
+        const opt=document.createElement("option"); opt.value=model; opt.textContent=model; frotaSel.appendChild(opt);
+      });
+    }
+
+    function fillTremOptions(){
+      const tremSel=document.getElementById("trem");
+      for(let n=101;n<=132;n++){ const opt=document.createElement("option"); opt.value=String(n); opt.textContent=String(n); tremSel.appendChild(opt); }
+    }
+
+    function createCellWithStatus(inputEl){
+      const wrap=document.createElement("div"); wrap.className="cell-status";
+      const badge=document.createElement("span"); badge.className="badge";
+      wrap.appendChild(inputEl); wrap.appendChild(badge); return {wrap,badge};
+    }
+
+    function createRow(truque,eixo,roda){
+      const tr=document.createElement("tr");
+
+      const thTruque=document.createElement("th"); thTruque.className="col-truque"; thTruque.textContent=truque; tr.appendChild(thTruque);
+      const thEixo=document.createElement("th"); thEixo.className="col-eixo"; thEixo.textContent=eixo; tr.appendChild(thEixo);
+      const thRoda=document.createElement("th"); thRoda.className="col-roda"; thRoda.textContent=roda; tr.appendChild(thRoda);
+
+      const thRodaTrem=document.createElement("th"); thRodaTrem.className="col-roda-trem";
+      const sentidoSel=document.getElementById("sentido").value;
+      thRodaTrem.textContent=getRodaTrem(truque,Number(eixo),roda,sentidoSel);
+      tr.appendChild(thRodaTrem);
+
+      measureFields.forEach(key=>{
+        const td=document.createElement("td");
+        const inp=document.createElement("input");
+        inp.type="number"; inp.inputMode="decimal"; inp.className="measure-input";
+        inp.name=`${truque}-${eixo}-${roda}-${key}`;
+        inp.placeholder=key; inp.step="0.01"; inp.min="0";
+        const {wrap,badge}=createCellWithStatus(inp);
+        td.appendChild(wrap); tr.appendChild(td);
+
+        inp.addEventListener("input",()=>{
+          const val=inp.value===""?null:Number(inp.value);
+          const level=classifyIndividual(key,val);
+          applySemaphore(inp,badge,level);
+          computeAndRenderDerived();
+          updateCounters();
+          updateFinalScore();
+        });
+      });
+
+      return tr;
+    }
+
+    function initTable(){ COMBINATIONS.forEach(c=>tbody.appendChild(createRow(c.truque,c.eixo,c.roda))); }
+
+      // Atualiza nota final sempre que QUALQUER campo de medição mudar
+      document.getElementById("measureBody").addEventListener("input", (e) => {
+      	if (e.target.classList.contains("measure-input")) {
+      	  computeAndRenderDerived();
+      	  updateCounters();
+      	  updateFinalScore();
+         }
+      	});
+
+    function classifyIndividual(key,val){
+      if(val===null||isNaN(val)) return null;
+      const rule=SEMAPHORE[key]; if(!rule) return null;
+      if(rule.red(val)) return "red";
+      if(rule.green(val)) return "green";
+      if(rule.yellow(val)) return "yellow";
+      return "neutral";
+    }
+
+    function applySemaphore(inputEl,badgeEl,level){
+      inputEl.classList.remove("status-ok","status-warn","status-bad");
+      badgeEl.classList.remove("ok-badge","warn-badge","bad-badge");
+      if(level===null||level==="neutral") return;
+      if(level==="green"){ inputEl.classList.add("status-ok"); badgeEl.classList.add("ok-badge"); }
+      else if(level==="yellow"){ inputEl.classList.add("status-warn"); badgeEl.classList.add("warn-badge"); }
+      else if(level==="red"){ inputEl.classList.add("status-bad"); badgeEl.classList.add("bad-badge"); }
+    }
+
+    function inRange(val,min,max){ if(val===null||isNaN(val)) return null; if(min!==null&&val<min) return false; if(max!==null&&val>max) return false; return true; }
+    function checkDerived(val,lim){ return inRange(val,lim.min,lim.max); }
+
+    function collectData(){
+      const meta = {
+        unidade:document.getElementById("unidade").value,
+        frota:document.getElementById("frota").value,
+        trem:document.getElementById("trem").value,
+        data:document.getElementById("data").value,
+        km:Number(document.getElementById("km").value),
+        os:document.getElementById("os").value.trim(),
+        operacao:document.getElementById("operacao").value,
+        tipo:document.getElementById("tipo").value,
+        sentido:document.getElementById("sentido").value,
+      };
+      const rows=[];
+      [...tbody.querySelectorAll("tr")].forEach(tr=>{
+        const ths=tr.querySelectorAll("th");
+        const truqueEl=ths[0], eixoEl=ths[1], rodaEl=ths[2], rodaTremEl=ths[3];
+        const inputs=tr.querySelectorAll("input.measure-input");
+        const row={ truque:truqueEl.textContent, eixo:Number(eixoEl.textContent), roda:rodaEl.textContent,
+          rodaTrem:(rodaTremEl.textContent?.trim()===""?null:Number(rodaTremEl.textContent)) };
+        inputs.forEach(inp=>{
+          const key=inp.name.split("-").slice(-1)[0];
+          const val=inp.value===""?null:Number(inp.value);
+          row[key]=val;
+          row[`${key}_level`]=classifyIndividual(key,val);
+        });
+        rows.push(row);
+      });
+      return { meta, medidas: rows };
+    }
+
+    function nestByTruqueEixoRoda(data){
+      const byTr={};
+      data.medidas.forEach(r=>{
+        byTr[r.truque]??={}; byTr[r.truque][r.eixo]??={};
+        byTr[r.truque][r.eixo][r.roda]={ D:r.D, sD:r.sD, sH:r.sH, qR:r.qR, V:r.V, FR:r.FR };
+      });
+      return byTr;
+    }
+
+    function avg(...nums){ const vals=nums.filter(v=>v!==null&&!isNaN(v)); if(!vals.length) return null; return vals.reduce((a,b)=>a+b,0)/vals.length; }
+    function diff(a,b){ if(a===null||b===null||isNaN(a)||isNaN(b)) return null; return Math.abs(a-b); }
+
+    function computeDerived(byTr){
+      const results=[];
+      Object.keys(byTr).forEach(tr=>{
+        Object.keys(byTr[tr]).forEach(eixoStr=>{
+          const eixo=Number(eixoStr);
+          const E=byTr[tr][eixo]["E"]; const Dd=byTr[tr][eixo]["D"];
+          if(E&&Dd){
+            const dsD=diff(E.sD,Dd.sD);
+            const okDsD=checkDerived(dsD,DERIVED_LIMITS.DsD);
+            results.push({regra:"DsD",ref:`${tr} / eixo ${eixo}`,valor:dsD,status:okDsD});
+
+            const dDiff=diff(E.D,Dd.D);
+            if(MOTOR_TRUQUES.includes(tr)){
+              const ok=checkDerived(dDiff,DERIVED_LIMITS.DDEM);
+              results.push({regra:"DDEM",ref:`${tr} / eixo ${eixo}`,valor:dDiff,status:ok});
+            } else if(tr===REBOQUE_TRUQUE){
+              const ok=checkDerived(dDiff,DERIVED_LIMITS.DDER);
+              results.push({regra:"DDER",ref:`${tr} / eixo ${eixo}`,valor:dDiff,status:ok});
+            }
+          }
+        });
+      });
+
+      Object.keys(byTr).forEach(tr=>{
+        const e1=byTr[tr][1], e2=byTr[tr][2];
+        if(e1&&e2){
+          const D_e1=avg(e1["E"]?.D??null,e1["D"]?.D??null);
+          const D_e2=avg(e2["E"]?.D??null,e2["D"]?.D??null);
+          const ddt=diff(D_e1,D_e2);
+          if(MOTOR_TRUQUES.includes(tr)){
+            const ok=checkDerived(ddt,DERIVED_LIMITS.DDTM);
+            results.push({regra:"DDTM",ref:`${tr}`,valor:ddt,status:ok});
+          } else if(tr===REBOQUE_TRUQUE){
+            const ok=checkDerived(ddt,DERIVED_LIMITS.DDTR);
+            results.push({regra:"DDTR",ref:`${tr}`,valor:ddt,status:ok});
+          }
+        }
+      });
+
+      const motorMeans=MOTOR_TRUQUES.map(tr=>{
+        const e1=byTr[tr]?.[1], e2=byTr[tr]?.[2];
+        if(!e1||!e2) return {tr,mean:null};
+        const D_e1=avg(e1["E"]?.D??null,e1["D"]?.D??null);
+        const D_e2=avg(e2["E"]?.D??null,e2["D"]?.D??null);
+        return {tr,mean:avg(D_e1,D_e2)};
+      });
+      const validMeans=motorMeans.filter(m=>m.mean!==null);
+      if(validMeans.length>=2){
+        let maxPairDiff=0;
+        for(let i=0;i<validMeans.length;i++){
+          for(let j=i+1;j<validMeans.length;j++){
+            const d=diff(validMeans[i].mean,validMeans[j].mean);
+            if(d!==null&&d>maxPairDiff) maxPairDiff=d;
+          }
+        }
+        const ok=checkDerived(maxPairDiff,DERIVED_LIMITS.DDT);
+        results.push({regra:"DDT",ref:MOTOR_TRUQUES.join(" vs "),valor:maxPairDiff,status:ok});
+      }
+      return results;
+    }
+
+    function renderDerived(results){
+      derivedBody.innerHTML="";
+      results.forEach(r=>{
+        const tr=document.createElement("tr");
+        const tdReg=document.createElement("td");
+        const tdRef=document.createElement("td");
+        const tdVal=document.createElement("td");
+        const tdSt=document.createElement("td");
+        const abbr=document.createElement("abbr");
+        const titles={
+          DsD:"DsD = Diferença de largura do friso no mesmo eixo (≤ 2,0 mm)",
+          DDEM:"DDEM = Diferença de diâmetro no mesmo eixo motor (≤ 1,0 mm)",
+          DDER:"DDER = Diferença de diâmetro no mesmo eixo reboque (≤ 2,0 mm)",
+          DDTM:"DDTM = Diferença entre eixos do mesmo truque motor (≤ 2,0 mm)",
+          DDTR:"DDTR = Diferença entre eixos do truque reboque (NP) (≤ 6,0 mm)",
+          DDT:"DDT = Diferença entre truques motores (máx. par-a-par ≤ 10,0 mm)"
+        };
+        abbr.title=titles[r.regra]; abbr.textContent=r.regra;
+        tdReg.appendChild(abbr);
+        tdRef.textContent=r.ref;
+        tdVal.textContent=(r.valor===null||isNaN(r.valor))?"—":r.valor.toFixed(2);
+        const badge=document.createElement("span"); badge.className="badge "+(r.status?"ok-badge":"bad-badge");
+        const label=document.createElement("span"); label.textContent=r.status===null?"sem dados":(r.status?"OK":"fora");
+        tdSt.appendChild(badge); tdSt.appendChild(document.createTextNode(" ")); tdSt.appendChild(label);
+        tr.appendChild(tdReg); tr.appendChild(tdRef); tr.appendChild(tdVal); tr.appendChild(tdSt);
+        derivedBody.appendChild(tr);
+      });
+    }
+
+    function computeAndRenderDerived(){ const data=collectData(); const byTr=nestByTruqueEixoRoda(data); const derived=computeDerived(byTr); renderDerived(derived); }
+
+    function computeCounters(data){
+      const counters={green:0,yellow:0,red:0,neutral:0,empty:0};
+      data.medidas.forEach(r=>{
+        measureFields.forEach(k=>{
+          const val=r[k]; const level=classifyIndividual(k,val);
+          if(level===null) counters.empty++; else if(level==="green") counters.green++; else if(level==="yellow") counters.yellow++; else if(level==="red") counters.red++; else counters.neutral++;
+        });
+      });
+      return counters;
+    }
+    function updateCounters(){ const data=collectData(); const c=computeCounters(data);
+      document.getElementById("cntGreen").textContent=c.green;
+      document.getElementById("cntAmber").textContent=c.yellow;
+      document.getElementById("cntRed").textContent=c.red;
+      document.getElementById("cntNeutral").textContent=c.neutral;
+      document.getElementById("cntEmpty").textContent=c.empty;
+    }
+
+    const YELLOW_PENALTY = 0.6;
+    const RED_PENALTY    = 3.0;
+    const DERIVED_PENALTIES = { DsD:5, DDEM:8, DDTM:8, DDTR:6 };
+
+    function isMetaFilled(meta){ return meta.unidade && meta.frota && meta.trem && meta.data && !isNaN(meta.km) && meta.os && meta.operacao && meta.tipo && meta.sentido; }
+
+/* =========================
+   NOVA LÓGICA DE NOTA FINAL
+   - Nota individual (96 campos): verde, amarelo=0.5, vermelho=0, vazio=0
+   - Nota derivada (20 parâmetros fixos): OK=1, Fora=0, sem dados=0
+   - Nota final ponderada: (2*Ind + 1*Der)/3
+   ========================= */
+
+    const IND_YELLOW_ALPHA = 0.5;         // α = 0,5
+    const IND_TOTAL_FIXED = 96;           // 16 linhas * 6 campos = 96
+    const RED_CRITICAL_P = 0.07;     // p = 0,07 penalização crítica por vermelho (hard limit)
+    const DER_TOTAL_FIXED = 20;           // conforme definição do usuário
+
+    function computeIndividualScore(data) {
+      // Nota base linear (vermelho e vazio não pontuam)
+      const c = computeCounters(data);
+
+      const basePoints = (c.green + c.neutral) + (IND_YELLOW_ALPHA * c.yellow);
+      const baseScore = 100 * (basePoints / IND_TOTAL_FIXED);
+
+      // Penalização crítica por vermelho (hard limit): multiplicador exponencial
+      const criticalFactor = Math.pow(1 - RED_CRITICAL_P, c.red);
+
+      const score = baseScore * criticalFactor;
+      return Math.max(0, Math.min(100, score));
+    }
+
+    function buildExpectedDerivedKeys() {
+      // Precisamos FIXAR os 20 critérios esperados:
+      // DsD: 4 truques * 2 eixos = 8
+      // DDEM: 3 truques motores * 2 eixos = 6
+      // DDER: NP * 2 eixos = 2
+      // DDTM: 3 truques motores = 3
+      // DDTR: NP = 1
+      // Total = 20
+      const expected = [];
+
+      const truques = ["M1", "NM", "NP", "M2"];
+      const motorTruques = ["M1", "NM", "M2"];
+
+      // Regras por eixo (ref = `${tr} / eixo ${eixo}`)
+      truques.forEach(tr => {
+        [1, 2].forEach(eixo => {
+          expected.push({ regra: "DsD", ref: `${tr} / eixo ${eixo}` });
+
+          if (motorTruques.includes(tr)) {
+            expected.push({ regra: "DDEM", ref: `${tr} / eixo ${eixo}` });
+          } else if (tr === "NP") {
+            expected.push({ regra: "DDER", ref: `${tr} / eixo ${eixo}` });
+          }
+        });
+      });
+
+      // Regras por truque (ref = `${tr}`)
+      motorTruques.forEach(tr => expected.push({ regra: "DDTM", ref: `${tr}` }));
+      expected.push({ regra: "DDTR", ref: `NP` });
+
+      return expected; // deve ter 20 itens
+    }
+
+    const EXPECTED_DERIVED = buildExpectedDerivedKeys();
+
+    function computeDerivedScore(data) {
+      const byTr = nestByTruqueEixoRoda(data);
+      const derivedResults = computeDerived(byTr); // sua função existente
+
+      // Mapa para lookup rápido (regra|ref => status)
+      const map = new Map();
+      derivedResults.forEach(r => {
+        map.set(`${r.regra}|${r.ref}`, r.status); // status: true/false/null
+      });
+
+      // Conta OK nos 20 esperados. Se não existir ou for null/false => 0 (sem dados = 0)
+      let okCount = 0;
+      EXPECTED_DERIVED.forEach(k => {
+        const st = map.get(`${k.regra}|${k.ref}`);
+        if (st === true) okCount += 1;
+      });
+
+      const score = 100 * (okCount / DER_TOTAL_FIXED);
+      return Math.max(0, Math.min(100, score));
+    }
+
+    function computeFinalScore(data) {
+      const ind = computeIndividualScore(data);
+      const der = computeDerivedScore(data);
+
+      // pesos: individual=2, derivada=1
+      const final = (2 * ind + 1 * der) / 3;
+
+      // igual ao seu padrão anterior: nota inteira 0–100
+      return Math.max(0, Math.min(100, Math.round(final)));
+    }
+
+    function updateFinalScore() {
+      const data = collectData();
+
+      const metaOK = isMetaFilled(data.meta);
+
+      // Se os metadados ainda não estão completos, mantém "—"
+      if (!metaOK) {
+        scoreEl.textContent = "—";
+        scoreDotEl.className = "dot empty";
+        return;
+      }
+
+      // Mostra a nota mesmo com vazios (vazios contam como 0 na nota individual e 0 na derivada)
+      const score = computeFinalScore(data);
+
+      scoreEl.textContent = String(score);
+      scoreDotEl.className = "dot " + (score >= 85 ? "green" : (score >= 70 ? "amber" : "red"));
+    }
+
+    const tolModal=document.getElementById("tolerancesModal");
+    const tolBody=document.getElementById("tolBody");
+    const tolOpenBtn=document.getElementById("tolerancesBtn");
+    const tolCloseBtn=document.getElementById("tolClose");
+    const tolCloseTopBtn=document.getElementById("tolCloseTop");
+    const tolDialog=tolModal.querySelector(".modal");
+
+    function formatLimitText(min,max){ const fmt=(n)=>(n===null||n===undefined)?null:n.toFixed(1).replace('.',','); const fmin=fmt(min), fmax=fmt(max);
+      if(fmin&&fmax) return `${fmin} a ${fmax}`; if(fmin&&!fmax) return `≥ ${fmin}`; if(!fmin&&fmax) return `≤ ${fmax}`; return `—`; }
+    function buildTolerancesHtml(){
+      const unitsNote=document.createElement("p"); unitsNote.className="small"; unitsNote.textContent="Unidades: mm/°.";
+      const sec1Title=document.createElement("div"); sec1Title.className="section-title"; sec1Title.textContent="Tolerâncias individuais (hard limits)";
+      const ul1=document.createElement("ul"); ul1.className="list";
+      const labels={ D:"D = Diâmetro", sD:"sD = Largura do friso", sH:"sH = Altura do friso", qR:"qR = Ângulo de face ativa", FR:"FR = Ovalização", V:"V = Empeno" };
+      Object.keys(LIMITS).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(LIMITS[k].min,LIMITS[k].max)}`; li.appendChild(abbr); li.appendChild(span); ul1.appendChild(li); });
+      const sec2Title=document.createElement("div"); sec2Title.className="section-title"; sec2Title.textContent="Tolerâncias derivadas / calculadas";
+      const ul2=document.createElement("ul"); ul2.className="list";
+      const dDesc={ DsD:"DsD = |sD(E) − sD(D)| (≤ 2,0)", DDEM:"DDEM = |D(E) − D(D)| (eixo motor ≤ 1,0)",
+        DDER:"DDER = |D(E) − D(D)| (eixo reboque ≤ 2,0)", DDTM:"DDTM = |D̄eixo1 − D̄eixo2| (truque motor ≤ 2,0)",
+        DDTR:"DDTR = |D̄eixo1 − D̄eixo2| (truque reboque ≤ 6,0)", DDT:"DDT = máx. diferença par-a-par entre truques motores ≤ 10,0" };
+      Object.keys(DERIVED_LIMITS).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=dDesc[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(DERIVED_LIMITS[k].min,DERIVED_LIMITS[k].max)}`; li.appendChild(abbr); li.appendChild(span); ul2.appendChild(li); });
+      const sec3Title=document.createElement("div"); sec3Title.className="section-title"; sec3Title.textContent="Faróis visuais — critérios";
+      const ul3=document.createElement("ul"); ul3.className="list";
+      const semaText={ D:"Vermelho: < 530,0 | Amarelo: < 532,0 | Verde: ≥ 532,0", sD:"Vermelho: < 17,0 | Amarelo: < 18,5 | Verde: ≥ 20,0",
+        sH:"Vermelho: < 18,0 ou > 27,5 | Amarelo: < 19,0 ou > 26,5 | Verde: ≤ 26,5",
+        qR:"Vermelho: < 2,5 | Amarelo: < 3,5 | Verde: ≥ 4,5", V:"Vermelho: > 1,0 | Amarelo: > 0,8 | Verde: ≤ 0,8", FR:"Vermelho: > 1,5 | Amarelo: > 1,0 | Verde: ≤ 1,0" };
+      Object.keys(semaText).forEach(k=>{ const li=document.createElement("li"); const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
+        const span=document.createElement("span"); span.textContent=`: ${semaText[k]}`; li.appendChild(abbr); li.appendChild(span); ul3.appendChild(li); });
+      const wrap=document.createElement("div"); wrap.appendChild(sec1Title); wrap.appendChild(ul1); wrap.appendChild(sec2Title); wrap.appendChild(ul2); wrap.appendChild(sec3Title); wrap.appendChild(ul3); wrap.appendChild(unitsNote); return wrap;
+    }
+
+    function openTolModal(){ tolBody.innerHTML=""; tolBody.appendChild(buildTolerancesHtml()); tolModal.classList.add("open"); tolModal.setAttribute("aria-hidden","false"); document.body.classList.add("modal-open"); tolDialog.focus(); }
+    function closeTolModal(){ tolModal.classList.remove("open"); tolModal.setAttribute("aria-hidden","true"); document.body.classList.remove("modal-open"); tolOpenBtn.focus(); }
+    tolOpenBtn.addEventListener("click",openTolModal);
+    tolCloseBtn?.addEventListener("click",closeTolModal);
+    tolCloseTopBtn?.addEventListener("click",closeTolModal);
+    tolModal.addEventListener("click",(e)=>{ if(e.target===tolModal) closeTolModal(); });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && tolModal.classList.contains("open")) closeTolModal(); });
+
+    function validate(data){
+      const errors=[];
+      if(!data.meta.unidade) errors.push("Campo 'Unidade' é obrigatório.");
+      if(!data.meta.frota) errors.push("Campo 'Frota' é obrigatório.");
+      if(!data.meta.trem) errors.push("Campo 'Trem' é obrigatório.");
+      if(!data.meta.data) errors.push("Campo 'Data' é obrigatório.");
+      if(isNaN(data.meta.km)) errors.push("Campo 'Quilometragem' deve ser numérico.");
+      if(!data.meta.os) errors.push("Campo 'Ordem de Serviço' é obrigatório.");
+      data.medidas.forEach(r=>{
+        ["D","sD","sH","qR","V","FR"].forEach(k=>{ // regras permanecem
+          const val=r[k]; const level=classifyIndividual(k,val);
+          if(level==="red") errors.push(`Crítico (vermelho): ${r.truque}/${r.eixo}/${r.roda} — ${k} = ${val}`);
+        });
+      });
+      return errors;
+    }
+
+    function toCSV(data){
+      const headers=["Unidade","Frota","Data","Quilometragem","Ordem de Serviço","Operação","Tipo","Sentido","Trem","Truque","Eixo","Roda(ref. Torno)","Roda Trem","D","sD","sH","qR","FR","V"];
+      const lines=[headers.join(",")];
+      const fmt=(v)=>(v===null||v===undefined||(typeof v==="number"&&isNaN(v)))?"":String(v);
+      data.medidas.forEach(r=>{
+        const row=[ fmt(data.meta.unidade),fmt(data.meta.frota),fmt(data.meta.data),fmt(data.meta.km),fmt(data.meta.os),
+          fmt(data.meta.operacao),fmt(data.meta.tipo),fmt(data.meta.sentido),fmt(data.meta.trem),
+          fmt(r.truque),fmt(r.eixo),fmt(r.roda),fmt(r.rodaTrem),
+          fmt(r.D),fmt(r.sD),fmt(r.sH),fmt(r.qR),fmt(r.FR),fmt(r.V)
+        ];
+        lines.push(row.join(","));
+      });
+      return lines.join("\n");
+    }
+    function downloadCSV(data,filename="medição_rodas.csv"){
+      const csv=toCSV(data);
+      const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function generatePdfReport(){
+      const data=collectData();
+      const counters=computeCounters(data);
+      const byTr=nestByTruqueEixoRoda(data);
+      const derived=computeDerived(byTr);
+
+      const now=new Date();
+      const fmt=(n)=>(n===null||n===undefined||isNaN(n))?"—":Number(n).toFixed(2);
+      const criticals=[];
+      data.medidas.forEach(r=>{
+        ["D","sD","sH","qR","V","FR"].forEach(k=>{
+          const level=classifyIndividual(k,r[k]);
+          if(level==="red") criticals.push(`${r.truque}/${r.eixo}/${r.roda} — ${k}: ${fmt(r[k])}`);
+        });
+      });
+
+      /* POSIÇÃO INVERTIDA no PDF: FR antes de V */
+      const measuresHeader=`
+        <tr>
+          <th>Truque</th><th>Eixo</th><th>Roda(ref. Torno)</th><th>Roda Trem</th>
+          <th>D</th><th>sD</th><th>sH</th><th>qR</th><th>FR</th><th>V</th>
+        </tr>`;
+
+      const levelClass=(lvl)=>{ if(lvl==="green") return "pdf-ok"; if(lvl==="yellow") return "pdf-warn"; if(lvl==="red") return "pdf-bad"; return "pdf-empty"; };
+      const dotClass=(lvl)=>{ if(lvl==="green") return "ok"; if(lvl==="yellow") return "warn"; if(lvl==="red") return "bad"; return "empty"; };
+
+      const measuresRows=data.medidas.map(r=>{
+        const cells=measureFields.map(k=>{
+          const lvl=classifyIndividual(k,r[k]); const cls=levelClass(lvl); const dcls=dotClass(lvl); const val=fmt(r[k]);
+          return `<td class="${cls}"><span class="status-dot ${dcls}"></span>${val}</td>`;
+        }).join("");
+        return `<tr><td>${r.truque}</td><td>${r.eixo}</td><td>${r.roda}</td><td>${r.rodaTrem ?? "—"}</td>${cells}</tr>`;
+      }).join("");
+
+      const derivedRows=derived.map(d=>`
+        <tr>
+          <td>${d.regra}</td>
+          <td>${d.ref}</td>
+          <td>${(d.valor===null||isNaN(d.valor))?"—":fmt(d.valor)}</td>
+          <td>${d.status===null?"sem dados":(d.status?"OK":"fora")}</td>
+        </tr>
+      `).join("");
+
+      const html=`
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Relatório — Inspeção de Rodas</title>
+            <style>
+              body { font-family: Arial, sans-serif; color: #111; }
+              .print-section { padding: 16px 24px; }
+              .print-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+              .print-sub { color: #555; margin-bottom: 12px; }
+              .print-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+              .print-card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+              .print-table { width: 100%; border-collapse: collapse; }
+              .print-table th, .print-table td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .print-table thead th { background: #f3f3f3; }
+              .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+              .chip { border: 1px solid #ddd; border-radius: 999px; padding: 4px 10px; font-weight: 700; font-size: 12px; }
+              .pdf-ok{ background:#e8f5e9; color:#1b5e20; } .pdf-warn{ background:#fff8e1; color:#8a5a00; } .pdf-bad{ background:#ffebee; color:#b71c1c; } .pdf-empty{ background:#fafafa; color:#777; }
+              .status-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; border:1px solid rgba(0,0,0,.2); }
+              .status-dot.ok{ background:#1b5e20; } .status-dot.warn{ background:#bf7b00; } .status-dot.bad{ background:#b71c1c; } .status-dot.empty{ background:#9aa0a6; }
+            </style>
+          </head>
+          <body>
+            <div class="print-section">
+              <div class="print-title">Relatório consolidado — Medição de Rodas</div>
+              <div class="print-sub">Gerado em ${now.toLocaleString('pt-BR')}</div>
+
+              <div class="print-card">
+                <div class="print-grid">
+                  <div><strong>Unidade:</strong> ${data.meta.unidade || "—"}</div>
+                  <div><strong>Frota:</strong> ${data.meta.frota || "—"}</div>
+                  <div><strong>Trem:</strong> ${data.meta.trem || "—"}</div>
+                  <div><strong>Data:</strong> ${data.meta.data || "—"}</div>
+                  <div><strong>OS:</strong> ${data.meta.os || "—"}</div>
+                  <div><strong>KM:</strong> ${isNaN(data.meta.km) ? "—" : data.meta.km}</div>
+                  <div><strong>Operação:</strong> ${data.meta.operacao || "—"}</div>
+                  <div><strong>Tipo:</strong> ${data.meta.tipo || "—"}</div>
+                  <div><strong>Sentido:</strong> ${data.meta.sentido || "—"}</div>
+                </div>
+              </div>
+
+              <div class="print-card">
+                <div><strong>Contadores de faróis</strong></div>
+                <div class="chips" style="margin-top:6px">
+                  <span class="chip">Verde: ${counters.green}</span>
+                  <span class="chip">Amarelo: ${counters.yellow}</span>
+                  <span class="chip">Vermelho: ${counters.red}</span>
+                  <span class="chip">Vazios: ${counters.empty}</span>
+                </div>
+              </div>
+
+              <div class="print-card">
+                <div><strong>Medições completas</strong></div>
+                <table class="print-table" style="margin-top:6px">
+                  <thead>${measuresHeader}</thead>
+                  <tbody>${measuresRows || `<tr><td colspan="10">Sem dados</td></tr>`}</tbody>
+                </table>
+              </div>
+
+              <div class="print-card">
+                <div><strong>Não conformidades críticas (vermelho)</strong></div>
+                ${criticals.length ? `<ul style="margin-top:6px">${criticals.map(c=>`<li>${c}</li>`).join("")}</ul>` : `<div style="margin-top:6px">Nenhuma.</div>`}
+              </div>
+
+              <div class="print-card">
+                <div><strong>Resultados derivados</strong></div>
+                <table class="print-table" style="margin-top:6px">
+                  <thead><tr><th>Regra</th><th>Referência</th><th>Valor</th><th>Status</th></tr></thead>
+                  <tbody>${derivedRows || `<tr><td colspan="4">Sem dados</td></tr>`}</tbody>
+                </table>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+      const win=window.open("","_blank");
+      win.document.open(); win.document.write(html); win.document.close();
+      win.onload=()=>setTimeout(()=>win.print(),120);
+    }
+
+    document.getElementById("unidade").addEventListener("change",(e)=>{ fillFrotaOptions(e.target.value); document.getElementById("frota").value=""; updateFinalScore(); });
+
+    ["frota","trem","data","km","os","operacao","tipo","sentido"].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener("change",updateFinalScore);
+      el.addEventListener("input",updateFinalScore);
+    });
+
+    document.getElementById("downloadCsvBtn").addEventListener("click",()=>{
+      const data=collectData(); const errs=validate(data);
+      if(errs.length){ alertError.textContent=errs.join(" "); alertError.style.display="block"; alertSuccess.style.display="none"; return; }
+      alertError.style.display="none"; alertSuccess.textContent="Exportado CSV com sucesso."; alertSuccess.style.display="block";
+      downloadCSV(data);
+    });
+
+    document.getElementById("inspectionForm").addEventListener("submit",(e)=>{
+      e.preventDefault();
+      const data=collectData(); const errs=validate(data);
+      if(errs.length){ alertError.textContent=errs.join(" "); alertError.style.display="block"; alertSuccess.style.display="none"; return; }
+      alertError.style.display="none"; alertSuccess.textContent="Formulário validado. Pronto para enviar ao servidor!"; alertSuccess.style.display="block";
+    });
+
+    document.getElementById("generatePdfBtn").addEventListener("click",generatePdfReport);
+
+    document.getElementById("sentido").addEventListener("change",()=>{
+      updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
+    });
+
+    /* =========================
+       NOVO: Botão "Roda Nova"
+       - Preenche todas as medições
+       - Só habilita quando Operação = "Troca Roda"
+       ========================= */
+
+    function preencherRodaNova() {
+      const valoresRodaNova = {
+        D: 608.50,
+        sD: 22.20,
+        sH: 25.50,
+        qR: 4.99,
+        FR: 0.00,
+        V: 0.00
+      };
+
+      document.querySelectorAll("input.measure-input").forEach(input => {
+        const key = input.name.split("-").slice(-1)[0];
+
+        if (Object.prototype.hasOwnProperty.call(valoresRodaNova, key)) {
+          input.value = valoresRodaNova[key];
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+
+      computeAndRenderDerived();
+      updateCounters();
+      updateFinalScore();
+    }
+
+    function atualizarEstadoBotaoRodaNova() {
+      const operacao = document.getElementById("operacao").value;
+      const btn = document.getElementById("rodaNovaBtn");
+      btn.disabled = (operacao !== "Troca Roda");
+    }
+
+    document.getElementById("rodaNovaBtn").addEventListener("click", () => {
+      // Por segurança: não faz nada se estiver desabilitado
+      if (document.getElementById("rodaNovaBtn").disabled) return;
+      preencherRodaNova();
+    });
+
+    document.getElementById("operacao").addEventListener("change", () => {
+      atualizarEstadoBotaoRodaNova();
+      updateFinalScore();
+    });
+
+    document.getElementById("inspectionForm").addEventListener("reset",()=>{
+      setTimeout(()=>{
+        document.getElementById("unidade").value=""; fillFrotaOptions(null); document.getElementById("frota").value="";
+        atualizarEstadoBotaoRodaNova(); // garante botão desativado após reset
+        updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
+        alertError.style.display="none"; alertSuccess.style.display="none";
+      },0);
+    });
+
+    function updateRodaTremColumn(){
+      const sentido=document.getElementById("sentido").value;
+      [...tbody.querySelectorAll("tr")].forEach(tr=>{
+        const ths=tr.querySelectorAll("th");
+        const truque=ths[0].textContent; const eixo=Number(ths[1].textContent); const roda=ths[2].textContent;
+        ths[3].textContent=getRodaTrem(truque,eixo,roda,sentido);
+      });
+    }
+
+    function initAll(){
+      fillTremOptions(); fillFrotaOptions(null);
+      initTable(); updateRodaTremColumn(); computeAndRenderDerived(); updateCounters(); updateFinalScore();
+      atualizarEstadoBotaoRodaNova(); // estado inicial (desabilitado)
+    }
+    initAll();
+
+    tbody.addEventListener("input", (e) => {
+	if (!e.target.classList.contains("measure-input")) return;
+	// a cor já é tratada pelo listener individual, mas isso garante que a nota sempre roda
+    	updateFinalScore();
+    });
+
+  </script>
+</body>
+</html>
