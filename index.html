@@ -383,15 +383,6 @@
         const {wrap,badge}=createCellWithStatus(inp);
         td.appendChild(wrap); tr.appendChild(td);
 
-        // Listener por célula: atualiza farol + derivados + contadores + nota
-        inp.addEventListener("input",()=>{
-          const val=inp.value===""?null:Number(inp.value);
-          const level=classifyIndividual(key,val);
-          applySemaphore(inp,badge,level);
-          computeAndRenderDerived();
-          updateCounters();
-          updateFinalScore();
-        });
       });
 
       return tr;
@@ -399,6 +390,33 @@
 
     function initTable(){
       COMBINATIONS.forEach(c=>tbody.appendChild(createRow(c.truque,c.eixo,c.roda)));
+    }
+
+    function bindMeasureTableAutoUpdates() {
+      const handler = (e) => {
+        const target = e.target;
+
+        if (!(target instanceof HTMLInputElement)) return;
+        if (!target.classList.contains("measure-input")) return;
+
+        const key = target.name.split("-").slice(-1)[0];
+        const val = target.value === "" ? null : Number(target.value);
+
+        const level = classifyIndividual(key, val);
+
+        const badge = target.closest(".cell-status")?.querySelector(".badge");
+        if (badge) applySemaphore(target, badge, level);
+
+        computeAndRenderDerived();
+        updateCounters();
+        updateFinalScore();
+      };
+
+      // input = em tempo real (digitando/colando)
+      tbody.addEventListener("input", handler);
+
+      // change = fallback para alguns casos de autofill/blur
+      tbody.addEventListener("change", handler);
     }
 
     function classifyIndividual(key,val){
@@ -614,7 +632,6 @@
       document.getElementById("cntGreen").textContent=c.green;
       document.getElementById("cntAmber").textContent=c.yellow;
       document.getElementById("cntRed").textContent=c.red;
-      document.getElementById("cntNeutral").textContent=c.neutral;
       document.getElementById("cntEmpty").textContent=c.empty;
     }
 
@@ -783,26 +800,93 @@
     tolModal.addEventListener("click",(e)=>{ if(e.target===tolModal) closeTolModal(); });
     document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && tolModal.classList.contains("open")) closeTolModal(); });
 
+    function buildExportBaseName(meta){
+      const safe = (s) => String(s ?? "")
+        .trim()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")   // tira acentos
+        .replace(/[\\/:*?"<>|]/g,"-")                     // evita chars inválidos em arquivo
+        .replace(/\s+/g,"_");                             // espaços -> underscore
+
+      const data = safe(meta.data);                       // yyyy-mm-dd (do input date)
+      const trem = safe(meta.trem);
+      const os   = safe(meta.os);
+      const op   = safe(meta.operacao);
+
+      const base = [data, trem, os, op].filter(Boolean).join("_");
+      return base || "export";
+    }
+
+
+
+
+
     /* =========================
        CSV (SEM BLOQUEIO)
        ========================= */
     function toCSV(data){
+      const SEP = ";";
       const headers=["Unidade","Frota","Data","Quilometragem","Ordem de Serviço","Operação","Tipo","Sentido","Trem","Truque","Eixo","Roda(ref. Torno)","Roda Trem","D","sD","sH","qR","FR","V"];
-      const lines=[headers.join(",")];
-      const fmt=(v)=>(v===null||v===undefined||(typeof v==="number"&&isNaN(v)))?"":String(v);
+
+      const escapeCSV = (v) => {
+	if (v === null || v === undefined || (typeof v === "number" && isNaN(v))) return "";
+	
+	// ✅ se for número (ou string numérica), trocar "." por "," na parte decimal
+	const isNumeric =
+	(typeof v === "number") ||
+	(typeof v === "string" && v.trim() !== "" && !isNaN(Number(v.replace(",", "."))));
+	
+	let s = String(v);
+	
+	if (isNumeric) {
+	  // garante formato com ponto e depois troca para vírgula
+	  const num = (typeof v === "number") ? v : Number(s.replace(",", "."));
+	  s = String(num).replace(".", ",");
+	}
+
+	// escapa aspas e envolve em aspas (robusto para ; e quebras de linha)
+	s = s.replace(/"/g, '""');
+	return `"${s}"`;
+                };
+
+      const lines=[];
+      lines.push(headers.map(escapeCSV).join(SEP));	
+
       data.medidas.forEach(r=>{
-        const row=[ fmt(data.meta.unidade),fmt(data.meta.frota),fmt(data.meta.data),fmt(data.meta.km),fmt(data.meta.os),
-          fmt(data.meta.operacao),fmt(data.meta.tipo),fmt(data.meta.sentido),fmt(data.meta.trem),
-          fmt(r.truque),fmt(r.eixo),fmt(r.roda),fmt(r.rodaTrem),
-          fmt(r.D),fmt(r.sD),fmt(r.sH),fmt(r.qR),fmt(r.FR),fmt(r.V)
-        ];
-        lines.push(row.join(","));
+          const row = [
+            data.meta.unidade,
+            data.meta.frota,
+            data.meta.data,
+            data.meta.km,
+            data.meta.os,
+            data.meta.operacao,
+            data.meta.tipo,
+            data.meta.sentido,
+            data.meta.trem,
+
+            r.truque,
+            r.eixo,
+            r.roda,
+            r.rodaTrem ?? "",
+
+            r.D,
+            r.sD,
+            r.sH,
+            r.qR,
+            r.FR,
+            r.V
+          ];
+
+        lines.push(row.map(escapeCSV).join(SEP));
       });
       return lines.join("\n");
     }
-    function downloadCSV(data,filename="medição_rodas.csv"){
+
+    function downloadCSV(data){
+      const base = buildExportBaseName(data.meta);
+      const filename = `${base}.csv`;
+
       const csv=toCSV(data);
-      const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+      const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
       URL.revokeObjectURL(url);
@@ -813,6 +897,7 @@
        ========================= */
     function generatePdfReport(){
       const data=collectData();
+      const base = buildExportBaseName(data.meta);
       const counters=computeCounters(data);
       const byTr=nestByTruqueEixoRoda(data);
       const derived=computeDerived(byTr);
@@ -857,7 +942,7 @@
         <html>
           <head>
             <meta charset="utf-8" />
-            <title>Relatório — Inspeção de Rodas</title>
+            <title>${base}</title>
             <style>
               body { font-family: Arial, sans-serif; color: #111; }
               .print-section { padding: 16px 24px; }
@@ -1053,6 +1138,7 @@
       updateCounters();
       updateFinalScore();
       atualizarEstadoBotaoRodaNova();
+      bindMeasureTableAutoUpdates();
     }
     initAll();
   </script>
