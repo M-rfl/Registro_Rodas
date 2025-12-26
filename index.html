@@ -746,47 +746,86 @@
     }
 
     function buildTolerancesHtml(){
-      const unitsNote=document.createElement("p"); unitsNote.className="small"; unitsNote.textContent="Unidades: mm/°.";
+      const unitsNote = document.createElement("p");
+      unitsNote.className = "small";
+      unitsNote.textContent = "Unidades: mm";
 
-      const sec1Title=document.createElement("div"); sec1Title.className="section-title"; sec1Title.textContent="Tolerâncias individuais (hard limits)";
-      const ul1=document.createElement("ul"); ul1.className="list";
-      const labels={ D:"D = Diâmetro", sD:"sD = Largura do friso", sH:"sH = Altura do friso", qR:"qR = Ângulo de face ativa", FR:"FR = Ovalização", V:"V = Empeno" };
+      /* =========================
+         INDIVIDUAIS
+         ========================= */
+      const sec1Title = document.createElement("div");
+      sec1Title.className = "section-title";
+      sec1Title.textContent = "Tolerâncias individuais (hard limits)";
+
+      const ul1 = document.createElement("ul");
+      ul1.className = "list";
+
+      const IND_DESC = {
+        D:  "Diâmetro da roda",
+        sD: "Largura do friso",
+        sH: "Altura do friso",
+        qR: "Ângulo de face ativa",
+        FR: "Ovalização",
+        V:  "Empeno"
+      };
+
       Object.keys(LIMITS).forEach(k=>{
-        const li=document.createElement("li");
-        const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(LIMITS[k].min,LIMITS[k].max)}`;
-        li.appendChild(abbr); li.appendChild(span); ul1.appendChild(li);
+        const li = document.createElement("li");
+
+        const strong = document.createElement("strong");
+        strong.textContent = k;
+
+        const desc = document.createElement("span");
+        desc.textContent = ` — ${IND_DESC[k]}: ${formatLimitText(LIMITS[k].min, LIMITS[k].max)}`;
+
+        li.appendChild(strong);
+        li.appendChild(desc);
+        ul1.appendChild(li);
       });
 
-      const sec2Title=document.createElement("div"); sec2Title.className="section-title"; sec2Title.textContent="Tolerâncias derivadas / calculadas";
-      const ul2=document.createElement("ul"); ul2.className="list";
-      const dDesc={ DsD:"DsD = |sD(E) − sD(D)| (≤ 2,0)", DDEM:"DDEM = |D(E) − D(D)| (eixo motor ≤ 1,0)",
-        DDER:"DDER = |D(E) − D(D)| (eixo reboque ≤ 2,0)", DDTM:"DDTM = |D̄eixo1 − D̄eixo2| (truque motor ≤ 2,0)",
-        DDTR:"DDTR = |D̄eixo1 − D̄eixo2| (truque reboque ≤ 6,0)", DDT:"DDT = máx. diferença par-a-par entre truques motores ≤ 10,0" };
+      /* =========================
+         DERIVADAS
+         ========================= */
+      const sec2Title = document.createElement("div");
+      sec2Title.className = "section-title";
+      sec2Title.textContent = "Tolerâncias derivadas / calculadas";
+
+      const ul2 = document.createElement("ul");
+      ul2.className = "list";
+
+      const DER_DESC = {
+        DsD:  "Diferença de largura do friso no mesmo eixo",
+        DDEM: "Diferença de diâmetro no mesmo eixo motor",
+        DDER: "Diferença de diâmetro no mesmo eixo reboque",
+        DDTM: "Diferença entre eixos do mesmo truque motor",
+        DDTR: "Diferença entre eixos do truque reboque (NP)",
+        DDT:  "Diferença máxima entre truques motores (par-a-par)"
+      };
+
       Object.keys(DERIVED_LIMITS).forEach(k=>{
-        const li=document.createElement("li");
-        const abbr=document.createElement("abbr"); abbr.title=dDesc[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${formatLimitText(DERIVED_LIMITS[k].min,DERIVED_LIMITS[k].max)}`;
-        li.appendChild(abbr); li.appendChild(span); ul2.appendChild(li);
+        const li = document.createElement("li");
+
+        const strong = document.createElement("strong");
+        strong.textContent = k;
+
+        const desc = document.createElement("span");
+        desc.textContent = ` — ${DER_DESC[k]}: ${formatLimitText(DERIVED_LIMITS[k].min, DERIVED_LIMITS[k].max)}`;
+
+        li.appendChild(strong);
+        li.appendChild(desc);
+        ul2.appendChild(li);
       });
 
-      const sec3Title=document.createElement("div"); sec3Title.className="section-title"; sec3Title.textContent="Faróis visuais — critérios";
-      const ul3=document.createElement("ul"); ul3.className="list";
-      const semaText={ D:"Vermelho: < 530,0 | Amarelo: < 532,0 | Verde: ≥ 532,0", sD:"Vermelho: < 17,0 | Amarelo: < 18,5 | Verde: ≥ 18,5",
-        sH:"Vermelho: < 18,0 ou > 27,5 | Amarelo: < 19,0 ou > 26,5 | Verde: ≤ 26,5",
-        qR:"Vermelho: < 2,5 | Amarelo: < 3,5 | Verde: ≥ 4,5", V:"Vermelho: > 1,0 | Amarelo: > 0,8 | Verde: ≤ 0,8", FR:"Vermelho: > 1,5 | Amarelo: > 1,0 | Verde: ≤ 1,0" };
-      Object.keys(semaText).forEach(k=>{
-        const li=document.createElement("li");
-        const abbr=document.createElement("abbr"); abbr.title=labels[k]; abbr.textContent=k;
-        const span=document.createElement("span"); span.textContent=`: ${semaText[k]}`;
-        li.appendChild(abbr); li.appendChild(span); ul3.appendChild(li);
-      });
-
-      const wrap=document.createElement("div");
-      wrap.appendChild(sec1Title); wrap.appendChild(ul1);
-      wrap.appendChild(sec2Title); wrap.appendChild(ul2);
-      wrap.appendChild(sec3Title); wrap.appendChild(ul3);
+      /* =========================
+         WRAP FINAL
+         ========================= */
+      const wrap = document.createElement("div");
+      wrap.appendChild(sec1Title);
+      wrap.appendChild(ul1);
+      wrap.appendChild(sec2Title);
+      wrap.appendChild(ul2);
       wrap.appendChild(unitsNote);
+
       return wrap;
     }
 
