@@ -57,6 +57,16 @@
     tbody th, tbody td { border-bottom:1px solid var(--grid); padding:var(--space-2); text-align:center; vertical-align:middle; color:var(--ink); }
     tbody tr:nth-child(even){ background:#f7f9fc; }
 
+    .th-desc{
+      display:block;
+      font-weight:600;
+      font-size:.72rem;
+      color:#334155;
+      line-height:1.1;
+      margin-top:2px;
+    }
+
+
     .col-truque, .col-eixo, .col-roda, .col-roda-trem { width:90px; }
 
     .measure-input { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius-8); background:#fbfcff; color:var(--ink);
@@ -186,12 +196,12 @@
 
       <div class="field">
         <label for="km">Quilometragem</label>
-        <input class="input" type="number" id="km" name="km" step="0.1" min="0" placeholder="Ex.: 120345.7" required />
+        <input class="input" type="text" id="km" name="km" inputmode="numeric" pattern="\d*" placeholder="Ex.: 120345" required />
       </div>
 
       <div class="field">
         <label for="os">Ordem de Serviço</label>
-        <input class="input" type="text" id="os" name="os" placeholder="Ex.: OS-000123" required />
+        <input class="input" type="text" id="os" name="os" inputmode="numeric" pattern="\d*" placeholder="Ex.: 123456" required />
       </div>
 
       <div class="field">
@@ -227,12 +237,12 @@
             <th class="col-eixo">Eixo</th>
             <th class="col-roda">Roda<br>(ref. Torno)</th>
             <th class="col-roda-trem">Roda Trem</th>
-            <th><abbr title="D = Diâmetro">D</abbr></th>
-            <th><abbr title="sD = Largura do friso">sD</abbr></th>
-            <th><abbr title="sH = Altura do friso">sH</abbr></th>
-            <th><abbr title="qR = Ângulo de face ativa">qR</abbr></th>
-            <th><abbr title="FR = Ovalização">FR</abbr></th>
-            <th><abbr title="V = Empeno">V</abbr></th>
+            <th>D<br><span class="th-desc">Diâmetro</span></th>>
+            <th>sD<br><span class="th-desc">Largura do friso</span></th>
+            <th>sH<br><span class="th-desc">Altura do friso</span></th>
+            <th>qR<br><span class="th-desc">Ângulo face ativa</span></th>
+            <th>FR<br><span class="th-desc">Ovalização</span></th>
+            <th>V<br><span class="th-desc">Empeno</span></th>
           </tr>
         </thead>
         <tbody id="measureBody"></tbody>
@@ -807,17 +817,22 @@
         .replace(/[\\/:*?"<>|]/g,"-")                     // evita chars inválidos em arquivo
         .replace(/\s+/g,"_");                             // espaços -> underscore
 
+      const unidade = safe(meta.unidade);
       const data = safe(meta.data);                       // yyyy-mm-dd (do input date)
       const trem = safe(meta.trem);
       const os   = safe(meta.os);
       const op   = safe(meta.operacao);
 
-      const base = [data, trem, os, op].filter(Boolean).join("_");
+      const base = [unidade,data, trem, os, op].filter(Boolean).join("_");
       return base || "export";
     }
 
-
-
+    function buildEmailSubject(meta){
+      const base = buildExportBaseName(meta); // Data_Trem_OS_Operacao
+      const unidadeTxt = meta.unidade ? `Unidade ${meta.unidade}` : "Unidade —";
+      const tremTxt = meta.trem ? `Trem  ${meta.trem}` : "Trem —";
+      return `${base} - ${unidadeTxt} - ${tremTxt}`;
+    }
 
 
     /* =========================
@@ -938,6 +953,30 @@
         `;
       }).join("");
 
+      const legendaHtml = `
+        <div class="print-card">
+          <div><strong>Legenda e definições das siglas</strong></div>
+          <div class="legend" style="margin-top:8px">
+            <div><strong>DsD</strong> — Diferença de largura do friso no mesmo eixo: <em>DsD = |sD(E) − sD(D)|</em> (≤ 2,0 mm)</div>
+            <div><strong>DDEM</strong> — Diferença de diâmetro no mesmo eixo (truque motor): <em>DDEM = |D(E) − D(D)|</em> (≤ 1,0 mm)</div>
+            <div><strong>DDER</strong> — Diferença de diâmetro no mesmo eixo (truque reboque NP): <em>DDER = |D(E) − D(D)|</em> (≤ 2,0 mm)</div>
+            <div><strong>DDTM</strong> — Diferença entre eixos do mesmo truque motor: <em>DDTM = |D̄eixo1 − D̄eixo2|</em> (≤ 2,0 mm)</div>
+            <div><strong>DDTR</strong> — Diferença entre eixos do truque reboque (NP): <em>DDTR = |D̄eixo1 − D̄eixo2|</em> (≤ 6,0 mm)</div>
+            <div><strong>DDT</strong> — Máxima diferença par-a-par entre truques motores: <em>DDT = max(|D̄truque_i − D̄truque_j|)</em> (≤ 10,0 mm)</div>
+            <hr style="border:none;border-top:1px solid #ddd;margin:10px 0" />
+            <div><strong>Notas</strong></div>
+            <div>• <strong>D̄_eixo</strong> = média de D(E) e D(D) no mesmo eixo.</div>
+            <div>• <strong>D̄_truque</strong> = média dos dois eixos do truque.</div>
+            <div>• <strong>E</strong> = roda Esquerda (ref. Torno) | <strong>D</strong> = roda Direita (ref. Torno).</div>
+            <div>• Unidades: mm </div>
+          </div>
+        </div>
+      `;
+
+      const kmFmt = (!isNaN(data.meta.km))
+        ? new Intl.NumberFormat("pt-BR").format(Number(data.meta.km))
+        : "—";	
+
       const html=`
         <html>
           <head>
@@ -973,6 +1012,20 @@
                 color:#b71c1c !important;
                 font-weight:700;
               }
+
+              .legend {
+                font-size: 12px;
+                color: #222;
+                line-height: 1.35;
+              }
+              .legend div {
+                margin: 4px 0;
+              }
+              .legend em {
+                font-style: italic;
+                color: #333;
+              }
+
             </style>
           </head>
           <body>
@@ -987,7 +1040,7 @@
                   <div><strong>Trem:</strong> ${data.meta.trem || "—"}</div>
                   <div><strong>Data:</strong> ${data.meta.data || "—"}</div>
                   <div><strong>OS:</strong> ${data.meta.os || "—"}</div>
-                  <div><strong>KM:</strong> ${isNaN(data.meta.km) ? "—" : data.meta.km}</div>
+                  <div><strong>KM:</strong> ${kmFmt}</div>
                   <div><strong>Operação:</strong> ${data.meta.operacao || "—"}</div>
                   <div><strong>Tipo:</strong> ${data.meta.tipo || "—"}</div>
                   <div><strong>Sentido:</strong> ${data.meta.sentido || "—"}</div>
@@ -1019,6 +1072,7 @@
                   <tbody>${derivedRows || `<tr><td colspan="4">Sem dados</td></tr>`}</tbody>
                 </table>
               </div>
+	      ${legendaHtml}
             </div>
           </body>
         </html>
@@ -1038,6 +1092,19 @@
       updateFinalScore();
     });
 
+    function onlyDigits(el){
+      const prev = el.value;
+      const next = String(prev).replace(/\D+/g, ""); // remove tudo que não é dígito
+      if (prev !== next) el.value = next;
+    }
+
+    // KM e OS: só dígitos, inclusive quando colar texto
+    ["km","os"].forEach(id=>{
+      const el = document.getElementById(id);
+      el.addEventListener("input", () => onlyDigits(el));
+      el.addEventListener("paste", () => setTimeout(()=>onlyDigits(el), 0));
+    });
+
     ["frota","trem","data","km","os","operacao","tipo","sentido"].forEach(id=>{
       const el=document.getElementById(id);
       el.addEventListener("change",updateFinalScore);
@@ -1054,7 +1121,52 @@
     // Mantive submit só como "validação leve" (sem alertError).
     document.getElementById("inspectionForm").addEventListener("submit",(e)=>{
       e.preventDefault();
-      alertSuccess.textContent="Formulário validado. Pronto para enviar ao servidor!";
+      
+      const data = collectData();
+      const metaOK = isMetaFilled(data.meta);
+
+      if(!metaOK){
+    			alertSuccess.textContent="Preencha todo o cabeçalho antes de enviar (Unidade, Frota, Trem, Data, KM, OS, Operação, Tipo, Sentido).";
+    			alertSuccess.style.display="block";
+    			return;
+  		}
+	
+      // 1) Baixa CSV com nome padrão (já usa buildExportBaseName)
+  		downloadCSV(data);
+      
+       // 2) Abre janela do PDF (usuário salva como PDF)
+               generatePdfReport();
+
+       // 3) Abre e-mail pronto (sem anexos automáticos — limitação do browser)
+       const to = "nucleo.transporte@motiva.com.br";
+       const subject = buildEmailSubject(data.meta);
+
+       const base = buildExportBaseName(data.meta);
+       const body =
+
+    `Olá,
+
+    Segue formulário de medição de rodas.
+
+    Arquivos gerados:
+    - ${base}.csv
+    - ${base}.pdf
+	
+    Unidade: ${data.meta.unidade}
+    Trem ID: ${data.meta.trem}
+    OS: ${data.meta.os}
+    Operação: ${data.meta.operacao}
+    Data: ${data.meta.data}
+
+    (Anexos: CSV e PDF gerados pelo sistema.)
+
+    Obrigado.`;
+
+
+       const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+       window.location.href = mailto;
+	
+      alertSuccess.textContent="CSV baixado, PDF aberto para salvar e e-mail preparado. Anexe os dois arquivos e envie.";
       alertSuccess.style.display="block";
     });
 
